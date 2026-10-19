@@ -1,0 +1,1704 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Folio</title>
+<style>
+:root{
+  --bg:#F5F4F0; --side:#FBFAF7; --card:#FFFFFF; --ink:#16171C; --ink2:#4A4D57; --muted:#80838E;
+  --line:#E7E4DC; --line2:#EFEDE7; --field:#FAF9F6; --accent:#2F5BEA; --accent-ink:#fff;
+  --accent-soft:#EAF0FF; --ok:#1E8E5A; --ok-soft:#E5F5EC; --warn:#B26B00; --warn-soft:#FFF3DD;
+  --bad:#C2372C; --bad-soft:#FDECEA; --shadow:0 1px 2px rgba(20,20,30,.04),0 4px 16px rgba(20,20,30,.05);
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#121317; --side:#16171C; --card:#1C1D23; --ink:#EDEEF2; --ink2:#B9BCC6; --muted:#8A8D98;
+    --line:#2A2C34; --line2:#24262D; --field:#17181D; --accent:#6C8CFF; --accent-ink:#0D1020;
+    --accent-soft:#1F2742; --ok:#4CC38A; --ok-soft:#173326; --warn:#E3A33B; --warn-soft:#382A12;
+    --bad:#F07167; --bad-soft:#3A1C1A; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font:14px/1.45 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;overflow:hidden}
+button,input,textarea,select{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:232px 1fr;height:100vh}
+
+/* sidebar */
+.side{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 14px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 22px}
+.mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#7A5CFF);
+  display:grid;place-items:center;color:#fff;font-weight:700;font-size:15px;letter-spacing:-.5px;
+  box-shadow:0 4px 10px rgba(47,91,234,.3)}
+.brand b{font-size:16px;letter-spacing:-.2px}
+.brand small{display:block;color:var(--muted);font-size:11px;margin-top:-2px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;
+  color:var(--ink2);font-weight:500}
+.nav button:hover{background:var(--line2)}
+.nav button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.nav svg{width:17px;height:17px;flex:none;opacity:.85}
+.side .spacer{flex:1}
+.keychip{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding:10px;border:1px solid var(--line);
+  border-radius:10px;background:var(--card);cursor:pointer}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--bad)}
+.dot.ok{background:var(--ok)}
+
+/* main */
+main{overflow:auto;position:relative}
+.view{display:none;padding:30px 36px 40px;max-width:1240px;margin:0 auto}
+.view.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;gap:16px}
+h1{font-size:24px;letter-spacing:-.4px;margin:0;font-weight:650}
+.sub{color:var(--muted);margin-top:4px}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(330px,1fr);gap:20px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.card .ch{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 0}
+.card h3{font-size:13px;margin:0;font-weight:650;letter-spacing:.1px}
+.card .cb{padding:14px 18px 18px}
+.field{margin-bottom:16px}
+.field:last-child{margin-bottom:0}
+#gem-fields .field:last-child,#cl-fields .field:last-child{margin-bottom:16px}
+.lbl{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.lbl span{font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px}
+.lbl em{font-style:normal;color:var(--muted);font-size:12px}
+textarea,input[type=text],input[type=password],select{width:100%;background:var(--field);border:1px solid var(--line);
+  border-radius:9px;padding:10px 12px;outline:none;transition:border .15s, box-shadow .15s}
+textarea{resize:vertical;min-height:92px;line-height:1.5}
+textarea:focus,input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.ghost{all:unset;cursor:pointer;font-size:12px;color:var(--accent);font-weight:600;padding:2px 6px;border-radius:6px}
+.ghost:hover{background:var(--accent-soft)}
+.seg{display:flex;background:var(--field);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px}
+.seg button{all:unset;flex:1;text-align:center;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:13px;
+  color:var(--ink2);font-weight:500;white-space:nowrap}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08);font-weight:600}
+.row{display:flex;gap:12px}
+.row>*{flex:1}
+.themes{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.theme{cursor:pointer;border:1.5px solid var(--line);border-radius:9px;padding:5px;background:var(--field);text-align:center}
+.theme.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.theme .sw{height:34px;border-radius:6px;position:relative;overflow:hidden}
+.theme .sw i{position:absolute;left:6px;top:8px;width:18px;height:3px;border-radius:2px}
+.theme .sw b{position:absolute;left:6px;top:15px;width:30px;height:3px;border-radius:2px;opacity:.5}
+.theme small{display:block;font-size:11px;margin-top:4px;color:var(--ink2)}
+.stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;background:var(--field);overflow:hidden}
+.stepper button{all:unset;cursor:pointer;width:34px;text-align:center;padding:7px 0;color:var(--ink2);font-size:16px}
+.stepper button:hover{background:var(--line2)}
+.stepper span{flex:1;text-align:center;font-weight:600}
+.checks{display:flex;flex-direction:column;gap:8px}
+.chk{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--field);cursor:pointer}
+.chk input{accent-color:var(--accent);width:15px;height:15px;margin:0}
+.chk b{font-weight:600;font-size:13px}
+.chk small{color:var(--muted);font-size:12px;margin-left:auto}
+.chk.dis{opacity:.5}
+.color{display:flex;align-items:center;gap:10px}
+.color input[type=color]{width:44px;height:32px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--field);cursor:pointer}
+.color input[type=color]:disabled{opacity:.4;cursor:default}
+.color label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);cursor:pointer}
+.color label input{accent-color:var(--accent);margin:0}
+.revise textarea{min-height:70px}
+.revise .acts{display:flex;gap:8px;margin-top:10px}
+.revise .acts .btn.acc{flex:1;justify-content:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chips button{all:unset;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);color:var(--ink2);background:var(--field)}
+.chips button:hover{border-color:var(--accent);color:var(--accent)}
+details{border:1px dashed var(--line);border-radius:9px;padding:9px 12px;background:var(--field)}
+details summary{cursor:pointer;font-weight:600;font-size:13px;list-style:none;display:flex;justify-content:space-between}
+details summary::after{content:"+";color:var(--muted)}
+details[open] summary::after{content:"–"}
+details textarea{margin-top:10px;min-height:110px;background:var(--card)}
+.primary{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+  background:var(--accent);color:var(--accent-ink);font-weight:650;font-size:15px;padding:13px 0;border-radius:10px;
+  box-shadow:0 6px 16px rgba(47,91,234,.28);transition:transform .1s, filter .15s}
+.primary:hover{filter:brightness(1.07)}
+.primary:active{transform:translateY(1px)}
+.primary:disabled,.primary.off{opacity:.5;pointer-events:none}
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:9px;
+  border:1px solid var(--line);background:var(--card);font-weight:600;font-size:13px}
+.btn:hover{background:var(--line2)}
+.btn.acc{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.off{opacity:.5;pointer-events:none}
+.head .btn{white-space:nowrap}
+.btn svg{width:16px;height:16px}
+.hint{font-size:12px;color:var(--muted);margin-top:10px;text-align:center}
+.sticky{}
+
+/* tooltip */
+.tip{font-style:normal;position:relative;display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;
+  border:1px solid var(--line);color:var(--muted);font-size:10px;font-weight:700;cursor:help}
+.tip::after{content:attr(data-t);position:absolute;left:50%;top:22px;transform:translateX(-50%) translateY(-4px);
+  width:240px;padding:10px 12px;border-radius:9px;background:#1B1C22;color:#E9EAF0;font-size:12px;font-weight:400;
+  line-height:1.45;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.15s;z-index:20;white-space:normal}
+.tip:hover::after{opacity:1;transform:translateX(-50%)}
+
+/* progress */
+.prog{max-width:760px;margin:30px auto 0}
+.stages{display:flex;gap:10px;margin:22px 0}
+.stage{flex:1;display:flex;align-items:center;gap:10px;padding:14px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
+.stage .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line);
+  font-size:12px;font-weight:700;color:var(--muted);flex:none}
+.stage.on{border-color:var(--accent)}
+.stage.on .n{border-color:var(--accent);color:var(--accent);animation:pulse 1.4s infinite}
+.stage.done .n{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--accent-soft)}50%{box-shadow:0 0 0 6px var(--accent-soft)}}
+.stage b{font-size:13px;display:block}
+.stage small{color:var(--muted);font-size:12px}
+.log{height:300px;overflow:auto;padding:6px 0;font-size:13px}
+.log div{display:flex;gap:10px;padding:7px 18px;border-bottom:1px solid var(--line2);animation:fade .25s}
+.log .tag{flex:none;font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px;background:var(--accent-soft);color:var(--accent);height:fit-content}
+.log .tag.ddg{background:#FFF0E6;color:#C0561B}
+.log .tag.br{background:#FDECEA;color:#C2372C}
+.log .tag.gg{background:#E8F5E9;color:#1E7B34}
+.log .tag.nw{background:#EEF0FF;color:#3949AB}
+.log .tag.th{background:var(--line2);color:var(--muted)}
+.log .tx{color:var(--ink2);overflow:hidden;text-overflow:ellipsis}
+.counter{display:flex;gap:24px;color:var(--muted);font-size:13px}
+.counter b{color:var(--ink);font-size:20px;display:block;letter-spacing:-.3px}
+.bar{height:4px;background:var(--line2);border-radius:4px;overflow:hidden;margin-top:14px}
+.bar i{display:block;height:100%;width:30%;background:var(--accent);border-radius:4px;animation:slide 1.6s ease-in-out infinite}
+@keyframes slide{0%{margin-left:-30%}100%{margin-left:100%}}
+
+/* results */
+.res-top{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.files{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:18px 0 20px}
+.file{display:flex;align-items:center;gap:12px;padding:14px;cursor:pointer;transition:transform .12s}
+.file:hover{transform:translateY(-2px)}
+.file .ic{width:40px;height:40px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:11px;color:#fff;flex:none}
+.file b{display:block;font-size:13px}
+.file small{color:var(--muted);font-size:12px}
+.rub{display:flex;gap:12px;padding:12px 18px;border-top:1px solid var(--line2)}
+.rub:first-child{border-top:0}
+.pill{flex:none;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;height:fit-content;text-transform:uppercase;letter-spacing:.3px}
+.pill.met{background:var(--ok-soft);color:var(--ok)}
+.pill.partial{background:var(--warn-soft);color:var(--warn)}
+.pill.missing{background:var(--bad-soft);color:var(--bad)}
+.rub b{font-size:13px;display:block}
+.rub p{margin:2px 0 0;color:var(--ink2);font-size:13px}
+.rub .t{color:var(--warn);font-size:12px;margin-top:4px}
+.src{display:block;padding:10px 18px;border-top:1px solid var(--line2);text-decoration:none;color:var(--ink);cursor:pointer}
+.src:first-child{border-top:0}
+.src:hover{background:var(--field)}
+.src b{font-size:13px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src small{color:var(--muted);font-size:12px}
+.score{display:flex;align-items:center;gap:14px}
+.ring{--p:0;width:54px;height:54px;border-radius:50%;background:conic-gradient(var(--ok) calc(var(--p)*1%),var(--line2) 0);
+  display:grid;place-items:center}
+.ring span{width:42px;height:42px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:700;font-size:13px}
+
+/* library */
+.lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.proj{padding:16px;cursor:pointer;transition:transform .12s}
+.proj:hover{transform:translateY(-2px)}
+.proj .thumb{height:96px;border-radius:8px;margin-bottom:12px;padding:14px;display:flex;flex-direction:column;justify-content:flex-end;color:#fff}
+.proj .thumb b{font-size:15px;line-height:1.2}
+.proj small{color:var(--muted);font-size:12px}
+.empty{text-align:center;color:var(--muted);padding:70px 0}
+
+/* google */
+.gacct{display:flex;align-items:center;gap:10px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;overflow:hidden;flex:none}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.gacct b{display:block;font-size:13px}.gacct small{color:var(--muted);font-size:12px}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.toolbar .seg{width:auto}.toolbar .seg button{padding:6px 14px;flex:none}
+.search{flex:1;min-width:200px;position:relative}
+.search input{padding-left:34px}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--muted)}
+.gfiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.gfile{cursor:pointer;overflow:hidden;transition:transform .12s, box-shadow .12s;position:relative}
+.gfile:hover{transform:translateY(-2px)}
+.gfile.sel{outline:2px solid var(--accent);outline-offset:1px}
+.gfile .gt{height:128px;background:var(--field);border-bottom:1px solid var(--line);display:grid;place-items:center;overflow:hidden}
+.gfile .gt img{width:100%;height:100%;object-fit:cover;object-position:top}
+.gfile .gb{padding:10px 12px;display:flex;gap:9px;align-items:flex-start}
+.gfile .gb b{font-size:13px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gfile .gb small{color:var(--muted);font-size:11.5px}
+.gico{width:18px;height:18px;border-radius:4px;flex:none;margin-top:1px;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:800}
+.gico.doc{background:#4285F4}.gico.slides{background:#F4B400}.gico.sheet{background:#0F9D58}
+.gbig{width:44px;height:56px;border-radius:5px;position:relative;opacity:.9}
+.gbig.doc{background:#4285F4}.gbig.slides{background:#F4B400}.gbig.sheet{background:#0F9D58}
+.gbig::after{content:"";position:absolute;left:10px;right:10px;top:18px;height:3px;background:#fff;border-radius:2px;box-shadow:0 7px 0 #fff,0 14px 0 #fff}
+.newtile{border:1.5px dashed var(--line);background:transparent;box-shadow:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:180px;color:var(--ink2);font-weight:600;font-size:13px}
+.newtile:hover{border-color:var(--accent);color:var(--accent)}
+.newtile .plus{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:22px;color:#fff}
+.dock{position:sticky;bottom:16px;margin-top:18px;display:none;align-items:center;gap:14px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.dock.on{display:flex;animation:fade .2s}
+.dock .nm{flex:1;min-width:0}.dock .nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dock .nm small{color:var(--muted);font-size:12px}
+.hero{max-width:560px;margin:40px auto;text-align:center;padding:36px}
+.gbtn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:12px;background:#fff;color:#1F1F1F;border:1px solid #DADCE0;border-radius:24px;padding:11px 22px;font-weight:600;font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.gbtn:hover{background:#F8F9FA;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+.gbtn svg{width:20px;height:20px}
+.steps{text-align:left;margin:22px 0 0;padding:0;list-style:none;counter-reset:s}
+.steps li{counter-increment:s;display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line2);font-size:13px;color:var(--ink2)}
+.steps li::before{content:counter(s);flex:none;width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:12px}
+.steps b{color:var(--ink)}
+.steps a{color:var(--accent);font-weight:600;cursor:pointer;text-decoration:none}
+/* classroom */
+.cr-help ol{margin:8px 0 0;padding-left:20px;color:var(--ink2)}.cr-help li{margin:4px 0}
+.cr-group{margin:22px 0 10px;display:flex;align-items:baseline;gap:10px}.cr-group h3{margin:0;font-size:15px}
+.cr-group small{color:var(--muted)}
+.cr-rows{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.cr-row{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.cr-row b{font-size:14px;line-height:1.3}.cr-row small{color:var(--muted);font-size:12px}
+.cr-row .due{font-size:12px;font-weight:600;color:var(--ink2)}.cr-row.missing .due{color:var(--bad)}
+.cr-row .acts{display:flex;gap:8px;margin-top:2px}.cr-row .acts .btn{padding:6px 12px;font-size:12px}
+.cr-ico{width:30px;height:30px;border-radius:8px;background:#1E8E3E;color:#fff;display:grid;place-items:center;font-weight:800;flex:none}
+.imported{display:none;align-items:center;gap:12px;margin:-8px 0 18px;padding:10px 14px;border-radius:10px;background:var(--ok-soft);border:1px solid var(--line)}
+.imported.on{display:flex}.imported b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.imported small{color:var(--ink2);font-size:12px}.imported .x{all:unset;cursor:pointer;color:var(--muted);font-size:18px;padding:0 4px}
+.hi-title{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.hi-title b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hi-title small{color:var(--muted);font-size:12px}
+.hi-files{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}.hi-files .chk{padding:7px 10px}
+.hi-ok{background:var(--warn-soft);border-color:transparent;margin-top:10px}
+.hi-slide{margin-top:6px;padding:7px 10px}.hi-slide b{font-weight:500}
+.hi-rep{font-weight:700;color:var(--warn)}
+.hi-edit{border:1px solid var(--line);border-radius:9px;padding:9px 10px;margin-top:8px;background:var(--field)}
+.hi-edit label{display:flex;gap:6px;align-items:flex-start;font-size:12px;color:var(--ink2);cursor:pointer}
+.hi-edit textarea{margin-top:6px;min-height:64px;background:var(--card)}.hi-edit small{display:block;color:var(--muted);font-size:11.5px;margin-top:4px}
+#hi-req{min-height:52px}.hi-ok b{font-weight:500;font-size:12.5px}
+.handin .acts{display:flex;gap:8px;margin-top:10px}.handin .acts .btn.acc{flex:1;justify-content:center}
+.qc{display:flex;flex-direction:column;gap:6px;padding:0 18px 10px}
+.qc-row{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--ink2)}
+.qc-row span{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;flex:none}
+.qc-row.ok span{background:var(--ok-soft);color:var(--ok)}.qc-row.bad span{background:var(--warn-soft);color:var(--warn)}
+.qc-facts{margin:0 18px 10px;padding:10px 12px;border-radius:12px;background:var(--warn-soft);font-size:12.5px;color:var(--ink2)}
+.qc-facts b{color:var(--warn)}.qc-facts div{margin-top:4px}.qc-facts small{color:var(--muted)}
+.qc-facts.soft{background:var(--glass-3)}.qc-facts.soft b{color:var(--ink2)}
+.qc-note{padding:0 18px 12px;font-size:12px;color:var(--muted)}
+.qc-fix{padding:0 18px 14px}.score{gap:10px}
+.slides-card{margin-bottom:20px}
+.sl-strip{display:flex;gap:12px;overflow-x:auto;padding:12px 18px 16px;scroll-snap-type:x proximity}
+.sl-thumb{flex:none;width:200px;aspect-ratio:16/9;border-radius:12px;position:relative;overflow:hidden;cursor:pointer;scroll-snap-align:start;
+  box-shadow:0 0 0 1px rgba(0,0,0,.08),0 8px 18px -10px rgba(0,0,0,.4);transition:transform .25s,box-shadow .25s}
+.sl-thumb:hover{transform:translateY(-3px)}
+.sl-thumb.on{box-shadow:0 0 0 2px var(--accent),0 12px 24px -10px var(--accent)}
+.sl-img{position:absolute;right:0;top:0;bottom:0;width:42%;background-size:cover;background-position:center;display:none}
+.sl-img.has{display:block}
+.sl-txt{position:absolute;left:10px;top:10px;right:10px;font-size:9px;line-height:1.25;display:flex;flex-direction:column;gap:2px}
+.sl-img.has+.sl-txt{right:46%}
+.sl-txt span{width:18px;height:2px;border-radius:2px;margin-bottom:3px}
+.sl-txt b{font-size:11px;line-height:1.15}.sl-txt em{font-style:normal;font-weight:800;font-size:18px}
+.sl-txt i{font-style:normal;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sl-thumb small{position:absolute;left:8px;bottom:6px;font-size:9px;opacity:.65;background:rgba(0,0,0,.25);color:#fff;padding:1px 6px;border-radius:6px}
+.sl-editor:empty{display:none}
+.sl-editor{padding:0 18px 18px}
+.sl-ed-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,1fr);gap:18px}
+.sl-f{display:block;margin-bottom:10px}.sl-f span{display:block;font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:4px}
+.sl-f textarea{min-height:0;resize:vertical}
+.sl-editor .acts{display:flex;gap:8px}
+.sl-photo{display:flex;flex-direction:column;gap:8px}.sl-plabel{font-size:12px;font-weight:600;color:var(--ink2)}
+.sl-pnow{aspect-ratio:16/10;border-radius:12px;background:var(--glass-3) center/cover;display:grid;place-items:center;color:var(--muted);font-size:12px;border:1px solid var(--stroke)}
+.sl-photo small{color:var(--muted);font-size:11px}
+.sl-psearch{display:flex;gap:6px}.sl-psearch input{flex:1}
+.sl-opts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.sl-opt{all:unset;cursor:pointer;aspect-ratio:4/3;border-radius:9px;background:var(--glass-3) center/cover;border:1px solid var(--stroke);transition:transform .2s}
+.sl-opt:hover{transform:scale(1.05);box-shadow:0 0 0 2px var(--accent)}
+.hm-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.hm-tile{padding:18px 20px}.hm-tile b{display:block;font-size:34px;font-weight:700;letter-spacing:-1px;line-height:1.1}
+.hm-tile small{color:var(--ink2);font-size:13px}.hm-tile.bad b{color:var(--bad)}.hm-tile.ok b{color:var(--ok)}
+.hm-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line2)}.hm-row:first-child{border-top:0}
+.hm-row b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hm-row small{color:var(--muted);font-size:12px}
+.hm-row.miss small span{color:var(--bad);font-weight:600}.hm-row .btn{padding:6px 14px;font-size:12px}
+.hm-proj{display:flex;gap:12px;align-items:center;padding:9px 8px;border-radius:12px;cursor:pointer;transition:background .2s}
+.hm-proj:hover{background:var(--glass-3)}.hm-proj span{width:38px;height:26px;border-radius:7px;flex:none;border-left:3px solid}
+.hm-proj b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hm-proj small{color:var(--muted);font-size:12px}
+.co-bar{display:flex;align-items:center;gap:26px;padding:14px 18px;margin-bottom:16px;flex-wrap:wrap}
+.co-bar b{display:block;font-size:22px;font-variant-numeric:tabular-nums}.co-bar small{color:var(--muted);font-size:12px}
+.co-target{font-size:13px;color:var(--ink2)}.co-target input{width:46px;display:inline-block;padding:5px 8px;text-align:center}
+.co-btns{margin-left:auto;display:flex;gap:8px}
+.co-grid{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(260px,1fr);gap:16px;align-items:start}
+.co-slide{aspect-ratio:16/9;border-radius:18px;position:relative;overflow:hidden;box-shadow:0 30px 60px -24px rgba(0,0,0,.55)}
+.co-img{position:absolute;right:0;top:0;bottom:0;width:42%;background:center/cover}
+.co-txt{position:absolute;inset:7% 7%;display:flex;flex-direction:column;gap:8px;overflow:hidden}.co-txt.withimg{right:46%}
+.co-txt span{width:44px;height:4px;border-radius:3px}
+.co-txt h2{margin:0;font-size:clamp(20px,2.4vw,34px);line-height:1.15}.co-txt p{margin:0;opacity:.8;font-size:clamp(12px,1.2vw,17px)}
+.co-txt em{font-style:normal;font-weight:800;font-size:clamp(40px,6vw,90px);line-height:1}.co-txt .q{font-style:italic;font-size:clamp(16px,1.8vw,26px);opacity:1}
+.co-txt i{font-style:normal;font-size:clamp(12px,1.25vw,18px);padding-left:14px;position:relative}.co-txt i::before{content:"";position:absolute;left:0;top:.55em;width:6px;height:6px;border-radius:2px;background:currentColor;opacity:.5}
+.co-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}.co-col{display:flex;flex-direction:column;gap:5px}
+.co-cols i,.co-col b{font-size:clamp(10px,.95vw,14px)}.co-txt:has(.co-cols) h2{font-size:clamp(18px,2vw,28px)}
+.co-notes .cb{font-size:15px;line-height:1.6;color:var(--ink);max-height:52vh;overflow:auto}
+.co-q{border-top:1px solid var(--line2);padding:14px 0}.co-q:first-child{border-top:0}
+.co-qq{display:flex;gap:12px;font-weight:600;font-size:14.5px}.co-qq span{width:24px;height:24px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:12px;background:var(--accent-soft);color:var(--accent)}
+.co-qa{display:none;margin:8px 0 0 36px;padding:10px 12px;border-radius:12px;background:var(--glass-3);color:var(--ink2);font-size:13.5px}
+.co-q.open .co-qa{display:block}.co-qb{margin:10px 0 0 36px;display:flex;gap:8px}.co-qb .btn{padding:6px 12px;font-size:12px}
+.co-q.knew .co-qq span{background:var(--ok-soft);color:var(--ok)}.co-q.miss .co-qq span{background:var(--bad-soft);color:var(--bad)}
+.src .badge{display:inline-block;min-width:16px;margin-right:6px;font-weight:800;text-align:center}
+.badge.ok{color:var(--ok)}.badge.blocked{color:var(--warn)}.badge.dead{color:var(--bad)}
+.removed{padding:10px 18px;border-top:1px solid var(--line2);font-size:12px;color:var(--muted)}
+.removed s{color:var(--bad)}
+.target{display:none;align-items:center;gap:10px;margin-top:10px;padding:9px 11px;border-radius:9px;background:var(--accent-soft);font-size:13px}
+.target.on{display:flex}
+.target b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.target button{all:unset;cursor:pointer;color:var(--muted);font-size:16px;line-height:1}
+.gwarn{margin:0 0 14px;padding:10px 14px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-size:13px;display:none}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:#1B1C22;color:#fff;
+  padding:11px 16px;border-radius:10px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:50;max-width:560px}
+.toast.on{opacity:1;transform:translateX(-50%)}
+.toast.err{background:#B3261E}
+.kbd{font-size:11px;border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:var(--muted)}
+</style>
+<style id="glass">
+/* ============ Liquid glass layer (sits on top of the base styles above) ============ */
+:root{
+  --base:#EEF1F8; --ink:#14161D; --ink2:#41465A; --muted:#7A8094;
+  --glass:rgba(255,255,255,.52); --glass-2:rgba(255,255,255,.70); --glass-3:rgba(255,255,255,.34);
+  --stroke:rgba(255,255,255,.75); --hl:rgba(255,255,255,.95); --solid:#F8F9FC;
+  --card:var(--glass-2); --field:rgba(255,255,255,.55); --line:rgba(20,24,40,.10); --line2:rgba(20,24,40,.06);
+  --side:transparent; --bg:var(--base);
+  --accent:#4F5BFF; --accent2:#B44CFF; --accent3:#18C8D8; --accent-ink:#fff; --accent-soft:rgba(79,91,255,.14);
+  --ok:#1E8E5A; --warn:#B26B00; --bad:#C2372C;
+  --ok-soft:rgba(30,142,90,.13); --warn-soft:rgba(214,140,0,.14); --bad-soft:rgba(194,55,44,.12);
+  --shadow:0 1px 0 var(--hl) inset,0 -1px 0 rgba(255,255,255,.25) inset,0 10px 30px -12px rgba(30,40,90,.22),0 2px 6px -2px rgba(30,40,90,.10);
+  --r:20px; --blur:saturate(180%) blur(22px);
+  --a1:#7B8CFF; --a2:#FF9EC7; --a3:#7FE3F0; --a4:#C9A6FF;
+}
+:root[data-mode="dark"]{
+  --base:#0A0C14; --ink:#EEF0F8; --ink2:#B8BDD2; --muted:#7E849C;
+  --glass:rgba(28,32,48,.46); --glass-2:rgba(38,42,62,.60); --glass-3:rgba(28,32,48,.30);
+  --stroke:rgba(255,255,255,.14); --hl:rgba(255,255,255,.18); --solid:#161927;
+  --field:rgba(10,12,22,.38); --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.06);
+  --accent:#8C96FF; --accent2:#D07BFF; --accent3:#3FE0EE; --accent-ink:#0B0D1A; --accent-soft:rgba(140,150,255,.18);
+  --ok:#5BD69B; --warn:#F2B451; --bad:#FF7A70;
+  --ok-soft:rgba(91,214,155,.14); --warn-soft:rgba(242,180,81,.14); --bad-soft:rgba(255,122,112,.14);
+  --shadow:0 1px 0 var(--hl) inset,0 -1px 0 rgba(255,255,255,.04) inset,0 18px 40px -16px rgba(0,0,0,.7),0 2px 8px -2px rgba(0,0,0,.4);
+  --a1:#3D46FF; --a2:#C43BFF; --a3:#00B7C9; --a4:#FF4F8B;
+}
+html,body{background:var(--base);color:var(--ink)}
+h1{font-family:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;font-size:30px;font-weight:700;letter-spacing:-.8px;
+  background:linear-gradient(110deg,var(--ink) 30%,var(--accent) 72%,var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--ink2);opacity:.85}
+
+/* living background */
+.aurora{position:fixed;inset:-20%;z-index:0;pointer-events:none;filter:blur(70px) saturate(140%);opacity:.85}
+.aurora i{position:absolute;border-radius:50%;will-change:transform}
+.aurora .a1{width:46vw;height:46vw;left:6%;top:4%;background:radial-gradient(circle,var(--a1),transparent 68%);animation:drift1 26s ease-in-out infinite}
+.aurora .a2{width:40vw;height:40vw;right:4%;top:10%;background:radial-gradient(circle,var(--a2),transparent 68%);animation:drift2 31s ease-in-out infinite}
+.aurora .a3{width:50vw;height:50vw;left:28%;bottom:-6%;background:radial-gradient(circle,var(--a3),transparent 66%);animation:drift3 35s ease-in-out infinite}
+.aurora .a4{width:30vw;height:30vw;right:22%;bottom:12%;background:radial-gradient(circle,var(--a4),transparent 66%);animation:drift1 29s ease-in-out infinite reverse}
+@keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(8vw,6vh) scale(1.12)}}
+@keyframes drift2{0%,100%{transform:translate(0,0) scale(1.05)}50%{transform:translate(-9vw,10vh) scale(.92)}}
+@keyframes drift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(6vw,-8vh) scale(1.08)}}
+.grain{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.app{position:relative;z-index:1;grid-template-columns:260px 1fr}
+
+/* glass recipe */
+.card,.side,.dock,.stage,.seg,.pal-box,.imported{
+  background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  border:1px solid var(--stroke);box-shadow:var(--shadow)}
+.card{border-radius:var(--r);position:relative;overflow:hidden;isolation:isolate;transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s}
+.card::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;
+  background:linear-gradient(160deg,rgba(255,255,255,.55),rgba(255,255,255,0) 38%)}
+:root[data-mode="dark"] .card::before{background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,0) 40%)}
+.card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;
+  background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.38),transparent 45%)}
+:root[data-mode="dark"] .card::after{background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(140,150,255,.16),transparent 45%)}
+.card:hover::after{opacity:1}
+.file:hover,.proj:hover,.gfile:hover,.cr-row:hover{transform:translateY(-4px) scale(1.01);box-shadow:var(--shadow),0 24px 48px -20px rgba(60,70,160,.35)}
+.tip{overflow:visible}.card:has(.tip:hover){overflow:visible;z-index:5}
+
+/* floating sidebar */
+.side{margin:12px 0 12px 12px;border-radius:26px;padding:18px 12px;height:calc(100vh - 24px)}
+.brand{padding:4px 8px 24px}
+.mark{width:34px;height:34px;border-radius:11px;background:conic-gradient(from 210deg,var(--accent),var(--accent2),var(--accent3),var(--accent));
+  box-shadow:0 0 0 1px rgba(255,255,255,.5) inset,0 8px 22px -6px var(--accent);animation:spinhue 12s linear infinite}
+@keyframes spinhue{to{filter:hue-rotate(360deg)}}
+.brand b{font-size:17px;letter-spacing:-.4px}
+.nav{position:relative}
+.nav button{position:relative;z-index:1;border-radius:14px;padding:10px 12px;transition:color .25s}
+.nav button:hover{background:transparent;color:var(--ink)}
+.nav button.on{background:transparent;box-shadow:none;color:var(--ink);font-weight:600}
+.nav-glow{position:absolute;left:0;right:0;top:0;height:40px;border-radius:14px;z-index:0;pointer-events:none;opacity:0;
+  background:var(--glass-2);border:1px solid var(--stroke);box-shadow:var(--shadow),0 6px 18px -6px var(--accent-soft);
+  transition:transform .45s cubic-bezier(.3,1.4,.4,1),height .3s,opacity .2s}
+.nav-glow::before{content:"";position:absolute;left:-1px;top:10px;bottom:10px;width:3px;border-radius:3px;background:linear-gradient(var(--accent),var(--accent2))}
+.keychip{border-radius:14px;background:var(--glass-3);border:1px solid var(--stroke)}
+.palette-hint{all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);
+  padding:9px 12px;border-radius:14px;border:1px solid var(--stroke);background:var(--glass-3);margin-bottom:8px;transition:.2s}
+.palette-hint:hover{color:var(--ink);background:var(--glass-2)}
+.mode{display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--glass-3);border:1px solid var(--stroke);margin-bottom:8px}
+.mode button{all:unset;cursor:pointer;flex:1;text-align:center;padding:5px 0;border-radius:10px;font-size:13px;color:var(--muted);transition:.2s}
+.mode button.on{background:var(--glass-2);color:var(--ink);box-shadow:var(--shadow)}
+
+/* main + motion */
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px;border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background-color:var(--muted)}
+.view.on{animation:viewin .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes viewin{from{opacity:0;transform:translateY(10px) scale(.985);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+.view.on .card{animation:rise .6s cubic-bezier(.2,.8,.2,1) both}
+.view.on .sticky .card:nth-child(2){animation-delay:.05s}.view.on .sticky .card:nth-child(3){animation-delay:.1s}.view.on .sticky .card:nth-child(4){animation-delay:.15s}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* controls */
+textarea,input[type=text],input[type=password],select{background:var(--field);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 1px 2px rgba(0,0,0,.04) inset;transition:border .2s,box-shadow .25s,background .2s}
+textarea:focus,input:focus,select:focus{background:var(--glass-2);border-color:var(--accent);
+  box-shadow:0 0 0 4px var(--accent-soft),0 8px 24px -10px var(--accent)}
+select option{background:var(--solid);color:var(--ink)}
+.seg{border-radius:14px;padding:4px}
+.seg button{border-radius:10px;transition:color .2s,background .25s,box-shadow .25s}
+.seg button.on{background:var(--glass-2);box-shadow:var(--shadow);color:var(--ink)}
+.chk{border-radius:14px;background:var(--glass-3);border:1px solid var(--stroke);transition:.2s}
+.chk:hover{background:var(--glass-2)}
+.theme{border-radius:14px;background:var(--glass-3);border:1px solid var(--stroke);transition:transform .25s}
+.theme:hover{transform:translateY(-2px)}
+.theme.on{border-color:var(--accent)}
+.stepper{border-radius:14px;background:var(--field)}
+details{border-radius:14px;background:var(--glass-3);border:1px dashed var(--line)}
+.chips button{background:var(--glass-3);border-color:var(--stroke);transition:.2s}
+.chips button:hover{background:var(--glass-2);transform:translateY(-1px)}
+.ghost{border-radius:9px}
+
+/* buttons: liquid gradient with a moving sheen */
+.primary,.btn.acc{background:linear-gradient(120deg,var(--accent),var(--accent2) 60%,var(--accent3));background-size:180% 180%;
+  color:#fff;border:0;position:relative;overflow:hidden;animation:flow 8s ease infinite;
+  box-shadow:0 1px 0 rgba(255,255,255,.45) inset,0 12px 28px -10px var(--accent)}
+@keyframes flow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.primary{border-radius:18px;padding:15px 0;font-size:15.5px;letter-spacing:.1px}
+.primary::after,.btn.acc::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);transition:left .7s}
+.primary:hover::after,.btn.acc:hover::after{left:130%}
+.primary:hover,.btn.acc:hover{filter:brightness(1.06) saturate(1.1)}
+.primary:active,.btn:active{transform:scale(.98)}
+.btn{border-radius:14px;background:var(--glass-3);border:1px solid var(--stroke);transition:background .2s,transform .15s,box-shadow .2s}
+.btn:hover{background:var(--glass-2);box-shadow:var(--shadow)}
+.btn.acc:hover{background:linear-gradient(120deg,var(--accent),var(--accent2) 60%,var(--accent3));background-size:180% 180%}
+
+/* progress: a breathing liquid orb */
+.prog{text-align:center}.prog .counter{justify-content:flex-start}.prog .card,.prog .stages{text-align:left}
+.orb{width:120px;height:120px;margin:0 auto 18px;position:relative}
+.orb i{position:absolute;inset:0;border-radius:42% 58% 63% 37%/45% 41% 59% 55%;opacity:.85;
+  background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.9),transparent 30%),conic-gradient(var(--accent),var(--accent2),var(--accent3),var(--accent));
+  animation:morph 7s ease-in-out infinite,spin 9s linear infinite;box-shadow:0 20px 50px -10px var(--accent)}
+.orb i:nth-child(2){animation-duration:9s,12s;animation-direction:alternate,reverse;opacity:.55;transform:scale(.9)}
+.orb i:nth-child(3){animation-duration:11s,15s;opacity:.35;filter:blur(10px)}
+@keyframes morph{0%,100%{border-radius:42% 58% 63% 37%/45% 41% 59% 55%}50%{border-radius:58% 42% 38% 62%/58% 63% 37% 42%}}
+@keyframes spin{to{rotate:360deg}}
+.stage{border-radius:18px}
+.stage.on{border-color:var(--accent);box-shadow:var(--shadow),0 0 0 4px var(--accent-soft)}
+.bar{background:var(--line2);height:5px}
+.bar i{background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));box-shadow:0 0 12px var(--accent)}
+.ring span{background:var(--solid)}
+:root[data-mode="dark"] .log .tag.ddg{background:rgba(255,140,80,.16);color:#FFB089}
+:root[data-mode="dark"] .log .tag.br{background:rgba(255,110,100,.16);color:#FF9C92}
+:root[data-mode="dark"] .log .tag.gg{background:rgba(90,210,130,.16);color:#8BE3A8}
+:root[data-mode="dark"] .log .tag.nw{background:rgba(140,150,255,.18);color:#B7BEFF}
+.ring{box-shadow:0 0 18px -4px var(--ok)}
+
+/* misc glass bits */
+.file .ic,.cr-ico,.gico,.newtile .plus{box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 6px 14px -6px rgba(0,0,0,.35)}
+.file .ic{border-radius:13px}
+.dock{border-radius:20px}
+.imported{border-radius:16px;background:linear-gradient(120deg,var(--ok-soft),var(--glass))}
+.toast{background:rgba(20,22,34,.72);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);color:#fff;border-radius:16px;border:1px solid rgba(255,255,255,.18)}
+.toast.err{background:rgba(179,38,30,.82)}
+.tip::after{background:rgba(20,22,34,.88);border-radius:12px}
+.kbd{border-color:var(--stroke);background:var(--glass-3);border-radius:6px}
+.hero{border-radius:28px}
+.src:hover{background:var(--glass-3)}
+.proj .thumb{border-radius:14px}
+.gfile .gt{background:var(--glass-3)}
+.hi-edit{background:var(--glass-3);border-color:var(--stroke);border-radius:14px}
+.newtile{background:transparent!important;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
+
+/* command palette */
+.palette{position:fixed;inset:0;z-index:60;display:none;align-items:flex-start;justify-content:center;padding-top:14vh;
+  background:rgba(10,12,24,.18);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.palette.on{display:flex;animation:fadein .18s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.pal-box{width:min(620px,92vw);border-radius:24px;overflow:hidden;animation:popin .28s cubic-bezier(.2,1.2,.3,1)}
+@keyframes popin{from{opacity:0;transform:translateY(-10px) scale(.97)}to{opacity:1;transform:none}}
+.pal-box input[type=text]{border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;padding:18px 20px;font-size:16px;box-shadow:none}
+.pal-box input[type=text]:focus{box-shadow:none;background:transparent;border-color:var(--line)}
+.pal-list{max-height:52vh;overflow:auto;padding:8px}
+.pal-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;cursor:pointer;color:var(--ink2)}
+.pal-item .pi{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:var(--glass-3);border:1px solid var(--stroke);flex:none;font-size:14px}
+.pal-item small{margin-left:auto;color:var(--muted);font-size:12px}
+.pal-item.sel{background:var(--glass-2);color:var(--ink);box-shadow:var(--shadow)}
+.th-box{width:min(680px,94vw);padding:20px 22px}
+.th-head b{display:block;font-size:18px;margin-bottom:4px}.th-head small{color:var(--ink2);font-size:13px;line-height:1.5}
+.th-q{margin-top:16px}.th-q b{display:block;font-size:14px;margin-bottom:3px}.th-q small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
+.th-q textarea{min-height:70px}
+.th-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.pal-foot{padding:9px 16px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);display:flex;gap:8px;align-items:center}
+
+@media (prefers-reduced-motion: reduce){
+  .aurora i,.mark,.orb i,.primary,.btn.acc{animation:none!important}
+  .view.on,.view.on .card{animation:none!important}
+}
+
+/* ============ Web + iPhone (the web app adds class="web" to the body tag) ============ */
+/* things that only work in the Windows app */
+.web .nav button[data-v=drive],.web .nav button[data-v=classroom],.web .field:has(> #dest),.web #target,
+.web #r-folder,.web #handin,.web .field:has(#s-dir),.web .field:has(#s-remind),.web #hm-refresh,
+.web .hm-tile:not(.ok),.web .card:has(> .cb#hm-next),.web #imported{display:none!important}
+.web .hm-tiles{grid-template-columns:1fr}
+.web-only{display:none}.web .web-only{display:revert}
+
+@media (max-width: 760px){
+  html,body{font-size:15px}
+  .app{display:block;height:100dvh}
+  main{height:100dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0}
+  .view{padding:calc(14px + env(safe-area-inset-top)) 14px calc(112px + env(safe-area-inset-bottom))}
+  h1{font-size:25px;letter-spacing:-.5px}
+  .head{flex-direction:column;align-items:stretch;gap:12px;margin-bottom:16px}
+  .head>div:last-child{display:flex;flex-wrap:wrap;gap:8px}
+  .head .btn{flex:1;justify-content:center}
+  /* the sidebar becomes a floating glass tab bar */
+  .side{position:fixed;z-index:40;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));top:auto;height:auto;
+    margin:0;padding:6px;border-radius:24px;flex-direction:row}
+  .side .brand,.side .spacer,.side .palette-hint,.side .keychip,.side .mode,.nav-glow{display:none!important}
+  .nav{flex-direction:row;justify-content:space-around;width:100%;gap:0}
+  .nav button{flex:1;flex-direction:column;gap:3px;padding:8px 2px;font-size:10.5px;justify-content:center;text-align:center;border-radius:16px}
+  .nav button svg{width:21px;height:21px}
+  .nav button.on{background:var(--glass-2);box-shadow:var(--shadow)}
+  /* one column everywhere */
+  .grid,.co-grid,.sl-ed-grid{grid-template-columns:minmax(0,1fr)!important;gap:14px}
+  .grid>*,.co-grid>*,.sl-ed-grid>*{min-width:0}
+  .qc-row,.qc-facts,.rub,.src,.removed,.hm-row,.cr-row,.hi-edit{overflow-wrap:anywhere}
+  .row{flex-direction:column;gap:12px}
+  .hm-tiles{grid-template-columns:1fr 1fr;gap:10px}.hm-tile{padding:14px}.hm-tile b{font-size:28px}
+  .files{grid-template-columns:1fr}
+  .themes{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}.theme small{font-size:10px}
+  .card{border-radius:20px}
+  .card .ch{padding:14px 14px 0}.card .cb{padding:12px 14px 16px}
+  .seg button{padding:8px 4px}
+  textarea,input[type=text],input[type=password],select{font-size:16px}  /* stops iPhone zooming in on tap */
+  .btn,.primary,.chk{min-height:44px}
+  .tip::after{width:200px}
+  .res-top{flex-direction:column;align-items:stretch}.res-top .actions{display:grid;grid-template-columns:1fr 1fr}
+  .res-top .actions .btn{justify-content:center}
+  .prog{margin-top:6px}.orb{width:90px;height:90px}
+  .stages{flex-direction:column;gap:8px}
+  .log{height:240px}
+  .counter{gap:16px}
+  .sl-thumb{width:160px}
+  .co-bar{gap:14px}.co-btns{margin-left:0;width:100%}.co-btns .btn{flex:1;justify-content:center}
+  .co-target{width:100%}
+  .co-slide{border-radius:14px}
+  .toast{bottom:calc(96px + env(safe-area-inset-bottom));max-width:calc(100vw - 32px)}
+  .palette{padding-top:calc(10vh + env(safe-area-inset-top))}
+  .th-acts .btn{flex:1;justify-content:center}
+  .aurora{inset:0;overflow:hidden;filter:blur(50px) saturate(140%)}  /* nothing wider than the screen, or phones zoom out */
+  .aurora i{transform-origin:center}
+  .dock{bottom:calc(96px + env(safe-area-inset-bottom))}
+}
+</style>
+
+</head>
+<body>
+<div class="aurora" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i><i class="a4"></i></div>
+<div class="grain" aria-hidden="true"></div>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="mark">F</div><div><b>Folio</b><small>Research studio</small></div></div>
+    <nav class="nav"><span class="nav-glow" aria-hidden="true"></span>
+      <button data-v="home" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>Home</button>
+      <button data-v="new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>New project</button>
+      <button data-v="drive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8.5 3h7l6 10.5-3.5 6h-12L2.5 13.5z"/><path d="M8.5 3l6 10.5h7M2.5 13.5h12l-3.5 6"/></svg>Google Drive</button>
+      <button data-v="classroom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="13" rx="2"/><circle cx="12" cy="10.5" r="2.2"/><path d="M8 18c.6-2.2 2.1-3.3 4-3.3s3.4 1.1 4 3.3"/></svg>Classroom</button>
+      <button data-v="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Library</button>
+      <button data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+    </nav>
+    <div class="spacer"></div>
+    <button class="palette-hint" id="pal-open" title="Quick commands"><span>Search & commands</span><span class="kbd">Ctrl K</span></button>
+    <div class="mode" id="mode" title="Appearance"><button data-m="light" title="Light">☀</button><button data-m="auto" title="Match Windows">◐</button><button data-m="dark" title="Dark">☾</button></div>
+    <div class="keychip" id="keychip"><span class="dot" id="keydot"></span><span id="keytxt">No API key</span></div>
+  </aside>
+
+  <main>
+    <!-- NEW -->
+    <section class="view" id="v-new">
+      <div class="head">
+        <div><h1>New project</h1><div class="sub">Drop in your assignment. Folio researches it and designs the slides and one-pager.</div></div>
+      </div>
+      <div class="imported" id="imported"><span class="cr-ico">C</span><div style="min-width:0;flex:1"><b id="imp-title"></b><small id="imp-meta"></small></div><button class="ghost" id="imp-open">Open in Classroom</button><button class="x" id="imp-clear" title="Dismiss">×</button></div>
+      <div class="grid">
+        <div class="card">
+          <div class="cb" style="padding-top:18px">
+            <div class="field">
+              <div class="lbl"><span>Assignment prompt <i class="tip" data-t="The question or prompt from your teacher, copied as-is. This is the main thing Folio researches.">i</i></span><button class="ghost" data-imp="prompt">Import file</button></div>
+              <textarea id="prompt" rows="5" placeholder="e.g. Explain the causes and effects of the Dust Bowl and how the government responded."></textarea>
+            </div>
+            <div class="field">
+              <div class="lbl"><span>Rubric <i class="tip" data-t="Paste the grading rubric. Folio plans the project around every criterion and shows you a checklist of how each one is covered.">i</i></span><button class="ghost" data-imp="rubric">Import file</button></div>
+              <textarea id="rubric" rows="6" placeholder="Paste each criterion, e.g.&#10;• Explains at least 3 causes (20 pts)&#10;• Uses 3+ credible sources (15 pts)&#10;• Clear visuals and organization (10 pts)"></textarea>
+            </div>
+            <div class="field">
+              <div class="lbl"><span>Task &amp; notes <i class="tip" data-t="Anything extra: required slide count, things to include, your angle on the topic, sources your teacher wants, or notes you already have.">i</i></span><em>optional</em></div>
+              <textarea id="task" rows="4" placeholder="e.g. 8–10 slides, include a timeline and one primary-source quote. Focus on Oklahoma."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="sticky">
+          <div class="card">
+            <div class="ch"><h3>Output</h3></div>
+            <div class="cb">
+              <div class="field">
+                <div class="seg" id="out"><button>Slideshow</button><button>One-pager</button><button class="on">Both</button></div>
+              </div>
+              <div class="field">
+                <div class="lbl"><span>Save to <i class="tip" data-t="This PC: PowerPoint, PDF and Word files in your Folio Projects folder. Google Drive: also creates Google Slides and Google Docs in your Drive. Pick an existing file from the Google Drive tab to add to it instead.">i</i></span></div>
+                <div class="seg" id="dest"><button class="on">This PC</button><button>Google Drive</button></div>
+                <div class="target" id="target"><span class="gico" id="tico"></span><b id="tname"></b><span class="sub" style="margin:0;font-size:12px">adding to this file</span><button id="tclear" title="Remove">×</button></div>
+              </div>
+              <div class="field">
+                <div class="lbl"><span>Photos <i class="tip" data-t="Folio finds real, freely licensed photos (Wikimedia Commons and Openverse) for your slides and one-pager, and credits each one. Some ≈ a third of the slides, Lots ≈ most of them.">i</i></span></div>
+                <div class="seg" id="photos"><button>None</button><button class="on">Some</button><button>Lots</button></div>
+              </div>
+              <div class="field row" id="countrow">
+                <div>
+                  <div class="lbl"><span>Slides <i class="tip" data-t="About how many slides to make, including the title and closing. A sources slide is added on top automatically.">i</i></span></div>
+                  <div class="stepper"><button id="sminus">–</button><span id="scount">10</span><button id="splus">+</button></div>
+                </div>
+                <div>
+                  <div class="lbl"><span>Research <i class="tip" data-t="How many searches Folio runs per engine. Quick ≈ 4, Standard ≈ 8, Deep ≈ 15. Deeper research finds more sources but takes longer and costs a little more.">i</i></span></div>
+                  <div class="seg" id="depth"><button>Quick</button><button class="on">Standard</button><button>Deep</button></div>
+                </div>
+              </div>
+              <div class="field">
+                <div class="lbl"><span>Theme <i class="tip" data-t="Visual style for the slides and one-pager. You can switch themes later from the results page without redoing the research.">i</i></span></div>
+                <div class="themes" id="themes"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:14px">
+            <div class="ch"><h3>Voice <i class="tip" data-t="Controls how the writing sounds so it reads like a real person at your level instead of generic AI text.">i</i></h3></div>
+            <div class="cb">
+              <div class="field row">
+                <div>
+                  <div class="lbl"><span>Level</span></div>
+                  <select id="level"><option>Middle school</option><option selected>High school</option><option>College</option><option>Professional</option></select>
+                </div>
+                <div>
+                  <div class="lbl"><span>Tone</span></div>
+                  <div class="seg" id="tone"><button>Casual</button><button class="on">Balanced</button><button>Formal</button></div>
+                </div>
+              </div>
+              <details>
+                <summary>Sound like me</summary>
+                <div class="sub" style="font-size:12px;margin-top:6px">Paste a paragraph or two you wrote. Folio matches your vocabulary and rhythm, not your content.</div>
+                <textarea id="voice" placeholder="Paste your own writing here…"></textarea>
+              </details>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:14px">
+            <div class="ch"><h3>Customize <i class="tip" data-t="Folio remembers these for your next project.">i</i></h3></div>
+            <div class="cb">
+              <div class="field">
+                <div class="lbl"><span>Citation style <i class="tip" data-t="How sources are listed (Works Cited / References / Bibliography). MLA, APA and Chicago also add in-text citations to the one-pager.">i</i></span></div>
+                <select id="cite"><option>MLA</option><option>APA</option><option>Chicago</option><option value="Simple">Simple list</option></select>
+              </div>
+              <div class="field row">
+                <div><div class="lbl"><span>Your name</span><em>optional</em></div><input type="text" id="by-name" placeholder="Jordan Lee"></div>
+                <div><div class="lbl"><span>Class / teacher</span><em>optional</em></div><input type="text" id="by-class" placeholder="US History, Period 3"></div>
+              </div>
+              <div class="field row">
+                <div><div class="lbl"><span>Date</span><button class="ghost" id="by-today">Today</button></div><input type="text" id="by-date" placeholder="leave blank to skip"></div>
+                <div><div class="lbl"><span>Heading font</span></div>
+                  <select id="font"><option value="">Theme default</option><option>Modern</option><option value="Classic">Classic (serif)</option><option>Clean</option><option>Friendly</option><option>Office</option></select></div>
+              </div>
+              <div class="field">
+                <div class="lbl"><span>Accent color <i class="tip" data-t="Replaces the theme's highlight color on slides and the one-pager, e.g. your school colors.">i</i></span></div>
+                <div class="color"><input type="color" id="accent" value="#2F5BEA" disabled><label><input type="checkbox" id="accent-def" checked>Use the theme's color</label></div>
+              </div>
+              <div class="field">
+                <div class="lbl"><span>Stick to the assignment <i class="tip" data-t="Strict: every slide must answer the prompt or a rubric item, and the checker removes anything off-topic. Balanced: a little helpful background. Explore: extra context that makes it stand out.">i</i></span></div>
+                <div class="seg" id="focus"><button>Strict</button><button class="on">Balanced</button><button>Explore</button></div>
+              </div>
+              <div class="field row">
+                <div><div class="lbl"><span>Sources <i class="tip" data-t="Trusted only: .gov, .edu, museums, libraries, Britannica and major news. Balanced: prefers those, no blogs or forums. Anything relevant: any reliable-looking site (never forums or homework sites). Rule-breaking results are filtered out before the AI sees them and checked again at the end.">i</i></span></div>
+                  <select id="src-level"><option>Trusted only</option><option selected>Balanced</option><option>Anything relevant</option></select></div>
+                <div><div class="lbl"><span>No older than</span></div>
+                  <select id="max-age"><option value="">Any age</option><option value="30">30 years</option><option value="20">20 years</option><option value="10">10 years</option><option value="5">5 years</option></select></div>
+              </div>
+              <div class="field">
+                <div class="lbl"><span>Never use these sites</span><em>optional</em></div>
+                <input type="text" id="blocked" placeholder="e.g. history.com, britannica.com">
+              </div>
+              <div class="checks">
+                <label class="chk"><input type="checkbox" id="o-wiki"><b>Can cite Wikipedia</b><small>many teachers say no</small></label>
+                <label class="chk"><input type="checkbox" id="o-notes" checked><b>Speaker notes</b><small>what to say per slide</small></label>
+                <label class="chk"><input type="checkbox" id="o-agenda"><b>Agenda slide</b><small>after the title</small></label>
+                <label class="chk"><input type="checkbox" id="o-q"><b>“Questions?” slide</b><small>at the end</small></label>
+                <label class="chk"><input type="checkbox" id="o-news" checked><b>Current event</b><small>real, dated news</small></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:14px">
+            <div class="ch"><h3>Search engines <i class="tip" data-t="Folio searches with every engine you tick and cross-checks facts between them. With Gemini, Google Search works on paid Gemini plans; free keys fall back to the other engines automatically.">i</i></h3></div>
+            <div class="cb">
+              <div class="checks">
+                <label class="chk" id="e-claude-l"><input type="checkbox" id="e-claude" checked><b id="e-claude-name">Claude web search</b><small id="e-claude-note">built in</small></label>
+                <label class="chk"><input type="checkbox" id="e-ddg" checked><b>DuckDuckGo</b><small>free</small></label>
+                <label class="chk" id="e-brave-l"><input type="checkbox" id="e-brave"><b>Brave Search</b><small id="brave-note">add key in Settings</small></label>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px">
+            <button class="primary" id="go"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>Research &amp; create</button>
+            <div class="hint">Usually takes 1–3 minutes · <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROGRESS -->
+    <section class="view" id="v-progress">
+      <div class="prog">
+        <div class="orb" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h1 id="p-title">Working on it…</h1>
+        <div class="sub">You can leave this running. Folio saves everything to your Library when it's done.</div>
+        <div class="stages">
+          <div class="stage" id="st-research"><div class="n">1</div><div><b>Research</b><small>Searching &amp; reading</small></div></div>
+          <div class="stage" id="st-write"><div class="n">2</div><div><b>Write</b><small>Drafting to the rubric</small></div></div>
+          <div class="stage" id="st-build"><div class="n">3</div><div><b>Design</b><small>Building your files</small></div></div>
+        </div>
+        <div class="card">
+          <div class="ch" style="padding-bottom:12px">
+            <div class="counter"><div><b id="c-search">0</b>searches</div><div><b id="c-src">0</b>sources found</div><div><b id="c-time">0:00</b>elapsed</div></div>
+            <button class="btn" id="cancel">Cancel</button>
+          </div>
+          <div class="bar"><i></i></div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULT -->
+    <section class="view" id="v-result">
+      <div class="res-top">
+        <div><h1 id="r-title">Project</h1><div class="sub" id="r-sub"></div></div>
+        <div class="actions">
+          <button class="btn" id="r-coach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Rehearse</button>
+          <button class="btn" id="r-folder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Show folder</button>
+          <button class="btn acc" id="r-new">New project</button>
+        </div>
+      </div>
+      <div class="files" id="r-files"></div>
+      <div class="card slides-card" id="r-slides-card">
+        <div class="ch"><h3>Slides <i class="tip" data-t="Click a slide to change its words or swap its photo. Folio rebuilds your files right away; Undo last change (under Revise) goes back.">i</i></h3><small class="sub" id="sl-count" style="margin:0"></small></div>
+        <div class="sl-strip" id="sl-strip"></div>
+        <div class="sl-editor" id="sl-editor"></div>
+      </div>
+      <div class="grid" style="grid-template-columns:1.2fr 1fr">
+        <div class="card">
+          <div class="ch" style="padding-bottom:12px"><h3>Quality check <i class="tip" data-t="A separate, strict grader scores the finished project against your rubric (the AI that wrote it doesn't grade itself). Folio also counts slides and photos itself and checks every number and date against the cited sources.">i</i></h3><div class="score"><button class="ghost" id="r-recheck">Re-check</button><div class="ring" id="r-ring"><span id="r-pct">0%</span></div></div></div>
+          <div id="r-checks"></div>
+          <div id="r-rubric"></div>
+        </div>
+        <div>
+          <div class="card handin" id="handin" style="display:none;margin-bottom:14px">
+            <div class="ch"><h3>Your Classroom files <i class="tip" data-t="Folio writes into the Google Docs already under Your work for this assignment. It shows you everything first, only adds text (never deletes), never uploads new files, and never turns anything in.">i</i></h3></div>
+            <div class="cb">
+              <div class="hi-title"><span class="cr-ico">C</span><div style="min-width:0"><b id="hi-name"></b><small id="hi-meta"></small></div></div>
+              <div class="hi-files" id="hi-files"><button class="btn" id="hi-load">Show my files in this assignment</button></div>
+              <div id="hi-draft" style="display:none">
+                <textarea id="hi-req" rows="2" placeholder="What should Folio add? e.g. Answer each Part I question under the question."></textarea>
+                <div class="acts"><button class="btn acc" id="hi-plan">Draft additions</button></div>
+              </div>
+              <div id="hi-edits"></div>
+              <div id="hi-review" style="display:none">
+                <label class="chk hi-ok"><input type="checkbox" id="hi-ok"><b>I've read these, checked the facts, and they sound like me</b></label>
+                <div class="acts"><button class="btn acc off" id="hi-write">Write into my doc</button></div>
+              </div>
+              <div class="acts"><button class="btn" id="hi-open">Open assignment in Classroom</button></div>
+              <div class="hint" id="hi-status" style="text-align:left;margin-top:10px"></div>
+            </div>
+          </div>
+          <div class="card revise">
+            <div class="ch"><h3>Revise with chat <i class="tip" data-t="Tell Folio what to change in plain words. It edits the project, re-checks the rubric and rebuilds the files. Undo goes back one change.">i</i></h3></div>
+            <div class="cb">
+              <textarea id="rv-text" placeholder="e.g. Make slide 4 simpler, add a slide about the New Deal, or use a more formal tone."></textarea>
+              <div class="chips" id="rv-chips"><button>Make it shorter</button><button>Simpler words</button><button>Add a slide with a real statistic</button><button>Fix anything the rubric marked partial or missing</button><button>Add a real current event</button></div>
+              <div class="acts"><button class="btn acc" id="rv-go">Revise</button><button class="btn" id="rv-undo" style="display:none">Undo last change</button></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <div class="ch"><h3>Restyle <i class="tip" data-t="Rebuild the slides and one-pager in a different theme. Uses the same content, so it's instant and free.">i</i></h3></div>
+            <div class="cb"><div class="themes" id="r-themes"></div></div>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <div class="ch" style="padding-bottom:10px"><h3>Sources <i class="tip" data-t="Folio opens every link. ✓ works · ? the site blocks automated checks, so open it yourself · dead links are removed and replaced with working ones from the research when possible.">i</i></h3><div style="display:flex;gap:10px;align-items:center"><small class="sub" id="r-srccount" style="margin:0"></small><button class="ghost" id="r-check">Check links</button></div></div>
+            <div id="r-sources"></div>
+            <div id="r-removed"></div>
+          </div>
+        </div>
+      </div>
+      <div class="hint" style="text-align:left;margin-top:16px">Read it through before you hand it in: check the facts against the sources, and edit anything that doesn't sound like you.</div>
+    </section>
+
+    <!-- DRIVE -->
+    <section class="view" id="v-drive">
+      <div id="g-setup" class="card hero" style="display:none">
+        <div style="font-size:40px"><svg width="52" height="52" viewBox="0 0 87.3 78"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg></div>
+        <h1 style="margin-top:10px">Connect Google Drive</h1>
+        <div class="sub">A one-time, ~10 minute setup so Google lets Folio open your Docs and Slides. You only ever do this once.</div>
+        <ol class="steps">
+          <li><div><b>Create a free Google Cloud project.</b> <a data-url="https://console.cloud.google.com/projectcreate">Open Google Cloud →</a><br>Name it “Folio” and click Create. No credit card needed.</div></li>
+          <li><div><b>Turn on three APIs</b> (click Enable on each): <a data-url="https://console.cloud.google.com/apis/library/drive.googleapis.com">Drive</a> · <a data-url="https://console.cloud.google.com/apis/library/docs.googleapis.com">Docs</a> · <a data-url="https://console.cloud.google.com/apis/library/slides.googleapis.com">Slides</a></div></li>
+          <li><div><b>Set up the sign-in screen.</b> <a data-url="https://console.cloud.google.com/auth/overview">Open Google Auth Platform →</a><br>Click Get started, app name “Folio”, your email, audience <b>External</b>. Then under <b>Audience → Test users</b>, add your own Gmail address (and your school email, if you'll sign in with that).</div></li>
+          <li><div><b>Create the app key.</b> <a data-url="https://console.cloud.google.com/auth/clients">Open Clients →</a><br>Create client → type <b>Desktop app</b> → Create → <b>Download JSON</b>.</div></li>
+          <li><div><b>Load that file into Folio</b> and you're done.</div></li>
+        </ol>
+        <button class="primary" id="g-load" style="margin-top:14px">Load the downloaded file…</button>
+        <div class="hint" style="margin-top:14px">School accounts often can't open Google Cloud — make the project with a personal Gmail instead.<br>School account that blocks outside apps? <a class="ghost g-man">Use Google Drive without signing in</a></div>
+      </div>
+
+      <div id="g-signin" class="card hero" style="display:none">
+        <div class="mark" style="width:52px;height:52px;margin:0 auto;font-size:24px;border-radius:13px">F</div>
+        <h1 style="margin-top:16px">Sign in to Google</h1>
+        <div class="sub" style="margin-bottom:22px">Your browser will open Google's normal sign-in page. Pick your account, click Allow, then come back here.</div>
+        <button class="gbtn" id="g-in"><svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>Sign in with Google</button>
+        <div class="hint" id="g-wait" style="display:none">Waiting for you to finish in the browser…</div>
+        <div class="hint">If Google says “Google hasn't verified this app”, that's normal for your own app: click <b>Continue</b>.<br>If it says “Access blocked” or that your admin needs to review the app, your school blocks outside apps.<br><a class="ghost" id="g-redo" style="font-size:12px">Redo setup</a></div>
+        <div class="hint" style="margin-top:14px">School account that blocks outside apps? <a class="ghost g-man">Use Google Drive without signing in</a></div>
+      </div>
+
+      <div id="g-manual" class="card hero" style="display:none">
+        <div class="mark" style="width:52px;height:52px;margin:0 auto;font-size:24px;border-radius:13px">F</div>
+        <h1 style="margin-top:16px">Google Drive, no sign-in</h1>
+        <div class="sub">For school accounts that block outside apps. Folio makes the files on this PC, then opens Google Drive and the project folder side by side.</div>
+        <ol class="steps" style="text-align:left">
+          <li><div><b>Make your project</b> with Save to set to <b>Google Drive</b>.</div></li>
+          <li><div>On the result screen, click <b>Add to Google Drive</b>.</div></li>
+          <li><div><b>Drag the .pptx / .docx</b> from the folder into Drive.</div></li>
+          <li><div>Right-click the file in Drive → <b>Open with → Google Slides</b> (or Docs) → <b>File → Save as Google Slides</b>. To add to a deck you already have, open it and use <b>File → Import slides</b>.</div></li>
+        </ol>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:14px">
+          <button class="primary" id="gm-open">Open Google Drive</button>
+          <button class="btn" id="gm-off">Sign in instead</button>
+        </div>
+      </div>
+
+      <div id="g-dash" style="display:none">
+        <div class="head">
+          <div><h1>Google Drive</h1><div class="sub">Pick a doc or deck for Folio to work on, or start a new one.</div></div>
+          <div class="gacct"><div class="avatar" id="g-av"></div><div><b id="g-name"></b><small id="g-mail"></small></div><button class="btn" id="g-out" style="margin-left:6px">Sign out</button></div>
+        </div>
+        <div class="gwarn" id="g-warn"></div>
+        <div class="toolbar">
+          <div class="seg" id="gkind"><button class="on" data-k="all">All</button><button data-k="doc">Docs</button><button data-k="slides">Slides</button><button data-k="sheet">Sheets</button></div>
+          <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="gq" placeholder="Search your Drive"></div>
+          <button class="btn" id="g-refresh" title="Refresh">↻</button>
+        </div>
+        <div class="gfiles" id="gfiles"></div>
+        <div class="dock" id="dock">
+          <span class="gico" id="d-ico"></span>
+          <div class="nm"><b id="d-name"></b><small id="d-meta"></small></div>
+          <button class="btn" id="d-open">Open in Google</button>
+          <button class="btn acc" id="d-use">Use with Folio →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOME -->
+    <section class="view on" id="v-home">
+      <div class="head"><div><h1 id="hm-hello">Hi</h1><div class="sub" id="hm-date"></div></div>
+        <div style="display:flex;gap:8px"><button class="btn" id="hm-refresh">Refresh from Classroom</button><button class="btn acc" id="hm-new">New project</button></div></div>
+      <div class="hm-tiles">
+        <div class="card hm-tile bad"><b id="hm-missing">–</b><small>missing</small></div>
+        <div class="card hm-tile"><b id="hm-assigned">–</b><small>assigned, not turned in</small></div>
+        <div class="card hm-tile ok"><b id="hm-projects">–</b><small>projects made</small></div>
+      </div>
+      <div class="grid" style="grid-template-columns:minmax(0,1.3fr) minmax(300px,1fr)">
+        <div class="card"><div class="ch"><h3>Up next from Classroom</h3><small class="sub" id="hm-when" style="margin:0"></small></div><div class="cb" id="hm-next"></div></div>
+        <div class="card"><div class="ch"><h3>Recent projects</h3><button class="ghost" id="hm-lib">See all</button></div><div class="cb" id="hm-recent"></div></div>
+      </div>
+    </section>
+
+    <!-- COACH -->
+    <section class="view" id="v-coach">
+      <div class="head"><div><h1 id="co-title">Rehearse</h1><div class="sub">Practice out loud. Arrow keys move between slides.</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="seg" id="co-mode" style="width:auto"><button class="on">Rehearse</button><button>Quiz me</button></div>
+          <button class="btn" id="co-exit">Back to project</button></div></div>
+      <div id="co-rehearse">
+        <div class="co-bar card"><div><b id="co-clock">0:00</b><small>total</small></div><div><b id="co-slideclock">0:00</b><small>this slide</small></div>
+          <div><b id="co-pos">1 / 1</b><small>slide</small></div>
+          <div class="co-target">Aim for <input type="text" id="co-min" value="5"> min <span id="co-pace"></span></div>
+          <div class="co-btns"><button class="btn" id="co-prev">‹ Prev</button><button class="btn" id="co-start">Start timer</button><button class="btn acc" id="co-next">Next ›</button></div></div>
+        <div class="co-grid">
+          <div class="co-stage" id="co-stage"></div>
+          <div class="card co-notes"><div class="ch"><h3>Speaker notes</h3></div><div class="cb" id="co-notes"></div></div>
+        </div>
+      </div>
+      <div id="co-quiz" style="display:none">
+        <div class="card"><div class="ch"><h3 id="co-qtitle">Practice questions</h3><div style="display:flex;gap:10px;align-items:center"><small class="sub" id="co-score" style="margin:0"></small><button class="ghost" id="co-newq">New questions</button></div></div>
+          <div class="cb" id="co-qs"></div></div>
+      </div>
+    </section>
+
+    <!-- CLASSROOM -->
+    <section class="view" id="v-classroom">
+      <div class="head">
+        <div><h1>Classroom</h1><div class="sub">See what's due and start a project from any assignment. Folio only writes into your existing docs when you ask, and never turns anything in.</div></div>
+        <div style="display:flex;gap:8px"><button class="btn" id="cr-open">Open Classroom window</button><button class="btn acc" id="cr-load">Load my assignments</button></div>
+      </div>
+      <div class="card cr-help" id="cr-help">
+        <div class="cb" style="padding-top:16px">
+          <b>How it works</b>
+          <ol>
+            <li>Click <b>Open Classroom window</b>. Sign in with your school account there (only the first time; Folio never sees your password).</li>
+            <li>Click <b>Load my assignments</b>. Folio reads your To-do list.</li>
+            <li>Click <b>Start project</b> on an assignment. Folio reads its instructions, rubric and your teacher's comments, and fills in a new project for you to check.</li>
+          </ol>
+        </div>
+      </div>
+      <div id="cr-status" class="hint" style="text-align:left"></div>
+      <div id="cr-lists"></div>
+    </section>
+
+    <!-- LIBRARY -->
+    <section class="view" id="v-library">
+      <div class="head"><div><h1>Library</h1><div class="sub">Everything you've made with Folio.</div></div></div>
+      <div class="lib" id="lib"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="v-settings">
+      <div class="head"><div><h1>Settings</h1><div class="sub">Pick the AI that powers Folio. Keys are stored only on this computer.</div></div></div>
+      <div class="card" style="max-width:680px">
+        <div class="cb" style="padding-top:20px">
+          <div class="field">
+            <div class="lbl"><span>AI provider <i class="tip" data-t="Which AI researches and writes your projects. Gemini has a free tier with daily limits. Claude is paid per use and usually writes more carefully.">i</i></span></div>
+            <div class="seg" id="s-prov"><button>Gemini</button><button>Claude</button></div>
+          </div>
+          <div id="gem-fields">
+          <div class="field">
+            <div class="lbl"><span>Gemini API key <i class="tip" data-t="Free: go to aistudio.google.com, sign in with a Google account, and click 'Get API key'. Free keys have daily limits; Google may use free-tier prompts to improve its products.">i</i></span><button class="ghost" id="getgem">Get a free key</button></div>
+            <input type="password" id="s-gkey" placeholder="AIza…">
+          </div>
+          <div class="field">
+            <div class="lbl"><span>Gemini model <i class="tip" data-t="Flash is free and good for most projects. Flash-Lite is faster with more free requests but writes less carefully. Pro needs a paid Gemini plan.">i</i></span></div>
+            <select id="s-gmodel">
+              <option value="gemini-3.8-flash">Gemini 3.8 Flash — free, recommended</option>
+              <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite — free, fastest</option>
+              <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro — paid plans only</option>
+            </select>
+          </div>
+          </div>
+          <div id="cl-fields">
+          <div class="field">
+            <div class="lbl"><span>Anthropic API key <i class="tip" data-t="Folio uses Claude to research and write. Create a key at console.anthropic.com → API Keys. Usage is billed to your Anthropic account, typically a few cents per project.">i</i></span><button class="ghost" id="showkey">Show</button></div>
+            <input type="password" id="s-key" placeholder="sk-ant-…">
+          </div>
+          <div class="field">
+            <div class="lbl"><span>Model <i class="tip" data-t="Sonnet is the best balance of quality, speed and cost. Opus writes the most carefully but costs more. Haiku is fastest and cheapest.">i</i></span></div>
+            <select id="s-model">
+              <option value="claude-sonnet-5-5">Claude Sonnet 5.5 — recommended</option>
+              <option value="claude-opus-5-5">Claude Opus 5.5 — highest quality</option>
+              <option value="claude-haiku-5-5">Claude Haiku 5.5 — fastest</option>
+            </select>
+          </div>
+          </div>
+          <div class="field">
+            <div class="lbl"><span>Brave Search API key <i class="tip" data-t="Optional. Adds Brave's independent search index as a third engine. Get a free key at brave.com/search/api.">i</i></span><em>optional</em></div>
+            <input type="password" id="s-brave" placeholder="BSA…">
+          </div>
+          <div class="field">
+            <div class="lbl"><span>Save projects to</span></div>
+            <div class="row"><input type="text" id="s-dir" readonly><button class="btn" id="s-pick" style="flex:none">Change…</button></div>
+          </div>
+          <div class="field">
+            <label class="chk"><input type="checkbox" id="s-remind" checked><b>Due-date reminders</b><small>Windows notifications for missing work and things due today or tomorrow, while Folio is open</small></label>
+          </div>
+          <button class="primary" id="s-save" style="margin-top:6px">Save settings</button>
+          <div class="web-only hint" style="text-align:left;margin-top:14px">Folio web · AI keys set on the server stay there and are never sent to this browser. <a class="ghost" href="/logout">Sign out</a></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<div class="palette thoughts" id="thoughts" aria-hidden="true">
+  <div class="pal-box th-box">
+    <div class="th-head"><b>This part is about you</b><small>Your teacher wants your own view here. Answer in your words and Folio builds those parts from what you say. Everything else it researches.</small></div>
+    <div id="th-list"></div>
+    <div class="th-acts"><button class="btn" id="th-cancel">Cancel</button><button class="btn" id="th-skip">Skip (Folio drafts them for you to rewrite)</button><button class="btn acc" id="th-go">Use my answers</button></div>
+  </div>
+</div>
+<div class="palette" id="palette" aria-hidden="true">
+  <div class="pal-box">
+    <input type="text" id="pal-q" placeholder="Type a command or search your projects…" autocomplete="off">
+    <div class="pal-list" id="pal-list"></div>
+    <div class="pal-foot"><span class="kbd">↑↓</span> move <span class="kbd">Enter</span> open <span class="kbd">Esc</span> close</div>
+  </div>
+</div>
+
+<script>
+const THEMES = {
+  Midnight:{bg:"#12141C",a:"#8B7CF6",t:"#F2F3F7"}, Paper:{bg:"#FAF7F2",a:"#B8461B",t:"#1F1C18"},
+  Sage:{bg:"#F3F5F1",a:"#2E6A4E",t:"#1C2A21"}, Ocean:{bg:"#0B1F33",a:"#38BDF8",t:"#EAF2FA"},
+  Mono:{bg:"#FFFFFF",a:"#111111",t:"#111111"}
+};
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const api = () => window.pywebview.api;
+let S = {theme:"Midnight", count:10, settings:{}, current:null, timer:null, t0:0, searches:0};
+
+function toast(msg, err){const t=$("#toast");t.textContent=msg;t.className="toast on"+(err?" err":"");clearTimeout(t._h);t._h=setTimeout(()=>t.className="toast",3800)}
+function show(v){$$(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));$$(".nav button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+  if(v==="library")loadLibrary(); if(v==="home")loadHome(); if(v==="drive")gRefresh();}
+function seg(id){const el=$(id);el.querySelectorAll("button").forEach(b=>b.onclick=()=>{el.querySelectorAll("button").forEach(x=>x.classList.remove("on"));b.classList.add("on");el.dispatchEvent(new Event("change"))});}
+function segVal(id){return $(id+" button.on").textContent}
+function esc(s){return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+function themeCards(el, onPick, sel){
+  el.innerHTML="";
+  Object.entries(THEMES).forEach(([n,c])=>{
+    const d=document.createElement("div");d.className="theme"+(n===sel?" on":"");
+    d.innerHTML=`<div class="sw" style="background:${c.bg};border:1px solid rgba(0,0,0,.06)"><i style="background:${c.a}"></i><b style="background:${c.t}"></b></div><small>${n}</small>`;
+    d.onclick=()=>{el.querySelectorAll(".theme").forEach(x=>x.classList.remove("on"));d.classList.add("on");onPick(n)};
+    el.appendChild(d);
+  });
+}
+
+$$(".nav button").forEach(b=>b.onclick=()=>show(b.dataset.v));
+$("#keychip").onclick=()=>show("settings");
+["#out","#depth","#tone","#s-prov","#photos","#focus"].forEach(seg);
+function setProv(p){$$("#s-prov button").forEach(b=>b.classList.toggle("on",b.textContent===p));
+  $("#gem-fields").style.display=p==="Gemini"?"block":"none";$("#cl-fields").style.display=p==="Claude"?"block":"none";}
+$("#s-prov").addEventListener("change",()=>setProv(segVal("#s-prov")));
+$("#getgem").onclick=()=>api().open_url("https://aistudio.google.com/apikey");
+$("#out").addEventListener("change",()=>{$("#countrow").style.display=segVal("#out")==="One-pager"?"none":"flex"});
+$("#sminus").onclick=()=>{S.count=Math.max(4,S.count-1);$("#scount").textContent=S.count};
+$("#splus").onclick=()=>{S.count=Math.min(25,S.count+1);$("#scount").textContent=S.count};
+themeCards($("#themes"),n=>S.theme=n,S.theme);
+$$("[data-imp]").forEach(b=>b.onclick=async()=>{
+  const r=await api().import_file(); if(!r)return; if(r.error)return toast(r.error,true);
+  const ta=$("#"+b.dataset.imp); ta.value=r.text; toast("Imported "+r.name);
+});
+$("#showkey").onclick=()=>{const i=$("#s-key");i.type=i.type==="password"?"text":"password";$("#showkey").textContent=i.type==="password"?"Show":"Hide"};
+
+function applySettings(s){
+  S.settings=s;
+  $("#s-key").value=s.api_key||""; $("#s-brave").value=s.brave_key||""; $("#s-model").value=s.model||"claude-sonnet-5-5";
+  $("#s-gkey").value=s.gemini_key||""; $("#s-gmodel").value=s.gemini_model||"gemini-3.8-flash";
+  $("#s-dir").value=s.out_dir||""; $("#s-remind").checked=s.reminders!==false; const prov=s.provider||"Gemini"; setProv(prov);
+  const ok=!!((prov==="Gemini"?s.gemini_key:s.api_key)||"").trim();
+  $("#keydot").classList.toggle("ok",ok); $("#keytxt").textContent=ok?(prov+" connected"):"No "+prov+" key — add one";
+  const gem=prov==="Gemini"; $("#e-claude-name").textContent=gem?"Google Search":"Claude web search";
+  $("#e-claude-note").textContent=gem?"paid Gemini plans":"built in";
+  if(gem&&s._provChanged!==false&&S.lastProv!==prov){$("#e-claude").checked=false} if(!gem&&S.lastProv!==prov){$("#e-claude").checked=true} S.lastProv=prov;
+  const bk=!!(s.brave_key||"").trim(); $("#e-brave").disabled=!bk; $("#e-brave-l").classList.toggle("dis",!bk);
+  $("#brave-note").textContent=bk?"API key added":"add key in Settings"; if(bk&&s.brave_on!==false)$("#e-brave").checked=true;
+  if(s.theme){S.theme=s.theme;themeCards($("#themes"),n=>S.theme=n,S.theme)}
+  if(!S.prefsLoaded){S.prefsLoaded=true;applyPrefs(s.prefs||{})}
+}
+/* customize: remembered between projects */
+function setSeg(id,v){$$(id+" button").forEach(b=>b.classList.toggle("on",b.textContent===v))}
+function applyPrefs(p){
+  if(p.photos)setSeg("#photos",p.photos);
+  if(p.citation)$("#cite").value=p.citation;
+  $("#by-name").value=p.name||""; $("#by-class").value=p.class||""; $("#font").value=p.font||"";
+  const acc=/^#[0-9a-fA-F]{6}$/.test(p.accent||""); $("#accent-def").checked=!acc; $("#accent").disabled=!acc; if(acc)$("#accent").value=p.accent;
+  $("#o-notes").checked=p.notes!==false; $("#o-agenda").checked=!!p.agenda; $("#o-q").checked=!!p.questions;
+  $("#o-news").checked=p.current_event!==false;
+  if(p.focus)setSeg("#focus",p.focus); if(p.source_level)$("#src-level").value=p.source_level;
+  $("#max-age").value=p.max_age||""; $("#blocked").value=p.blocked_sites||""; $("#o-wiki").checked=!!p.wiki_ok;
+}
+function prefs(){return {photos:segVal("#photos"),citation:$("#cite").value,name:$("#by-name").value.trim(),
+  class:$("#by-class").value.trim(),date:$("#by-date").value.trim(),font:$("#font").value,
+  accent:$("#accent-def").checked?"":$("#accent").value,notes:$("#o-notes").checked,
+  agenda:$("#o-agenda").checked,questions:$("#o-q").checked,current_event:$("#o-news").checked,
+  focus:segVal("#focus"),source_level:$("#src-level").value,max_age:$("#max-age").value,
+  blocked_sites:$("#blocked").value.trim(),wiki_ok:$("#o-wiki").checked}}
+$("#accent-def").onchange=()=>{$("#accent").disabled=$("#accent-def").checked};
+$("#by-today").onclick=()=>{$("#by-date").value=new Date().toLocaleDateString([],{month:"long",day:"numeric",year:"numeric"})};
+$("#s-pick").onclick=async()=>{const d=await api().pick_folder(); if(d)$("#s-dir").value=d};
+$("#s-save").onclick=async()=>{
+  const s=await api().save_settings({provider:segVal("#s-prov"),api_key:$("#s-key").value.trim(),
+    gemini_key:$("#s-gkey").value.trim(),gemini_model:$("#s-gmodel").value,brave_key:$("#s-brave").value.trim(),
+    model:$("#s-model").value,out_dir:$("#s-dir").value,reminders:$("#s-remind").checked});
+  applySettings(s); toast("Settings saved");
+};
+
+/* generate */
+function setStage(name){
+  const order=["research","write","build"]; const i=order.indexOf(name);
+  order.forEach((n,j)=>{const el=$("#st-"+n);el.classList.toggle("done",j<i);el.classList.toggle("on",j===i)});
+}
+function logLine(tag,cls,text){const d=document.createElement("div");d.innerHTML=`<span class="tag ${cls}">${tag}</span><span class="tx">${esc(text)}</span>`;
+  const l=$("#log");l.appendChild(d);l.scrollTop=l.scrollHeight;}
+$("#go").onclick=async()=>{
+  const prov=S.settings.provider||"Gemini";
+  if(!((prov==="Gemini"?S.settings.gemini_key:S.settings.api_key)||"").trim()){toast("Add your "+prov+" API key in Settings first.",true);return show("settings")}
+  if(!$("#prompt").value.trim()){toast("Paste the assignment prompt first.",true);return $("#prompt").focus()}
+  const opts={prompt:$("#prompt").value,rubric:$("#rubric").value,task:$("#task").value,
+    output:segVal("#out"),slide_count:S.count,depth:segVal("#depth"),theme:S.theme,
+    reading_level:$("#level").value,tone:segVal("#tone"),voice_sample:$("#voice").value,
+    engines:{claude:$("#e-claude").checked,duckduckgo:$("#e-ddg").checked,brave:$("#e-brave").checked},
+    google:null, ...prefs(), classroom:CR.imported||null};
+  if(segVal("#dest")==="Google Drive"){
+    if(G.target)opts.google={mode:"existing",file:G.target};
+    else{const s=await api().g_status();opts.google=s.connected?{mode:"new"}:{mode:"manual"}}}
+  if(!opts.engines.claude&&!opts.engines.duckduckgo&&!opts.engines.brave){return toast("Pick at least one search engine.",true)}
+  // parts only you can answer (your opinion, your life): ask before Folio writes anything
+  $("#go").classList.add("off"); const old=$("#go").innerHTML; $("#go").innerHTML="Reading the assignment…";
+  let pq={questions:[]}; try{pq=await api().personal_qs({prompt:opts.prompt,rubric:opts.rubric,task:opts.task})}catch(e){}
+  $("#go").classList.remove("off"); $("#go").innerHTML=old;
+  if((pq.questions||[]).length){const ans=await askThoughts(pq.questions); if(ans===null)return; opts.student_thoughts=ans}
+  startProgress("Researching your assignment…");
+  const r=await api().generate(opts); if(r&&r.error){toast(r.error,true);show("new")}
+};
+function askThoughts(qs){return new Promise(done=>{
+  const m=$("#thoughts"); const list=$("#th-list"); list.innerHTML="";
+  qs.forEach((q,i)=>{const d=document.createElement("div");d.className="th-q";
+    d.innerHTML=`<b>${esc(q.q)}</b>${q.hint?`<small>${esc(q.hint)}</small>`:""}<textarea rows="3" placeholder="Your answer, in your own words. A few honest sentences is plenty."></textarea>`;list.appendChild(d)});
+  m.classList.add("on"); const first=list.querySelector("textarea"); first&&first.focus();
+  const finish=v=>{m.classList.remove("on");done(v)};
+  $("#th-go").onclick=()=>finish(qs.map((q,i)=>({q:q.q,a:list.querySelectorAll("textarea")[i].value.trim()})));
+  $("#th-skip").onclick=()=>finish(qs.map(q=>({q:q.q,a:""})));
+  $("#th-cancel").onclick=()=>finish(null);
+})}
+function startProgress(title){
+  $("#log").innerHTML="";$("#c-search").textContent="0";$("#c-src").textContent="0";S.searches=0;
+  $("#p-title").textContent=title;setStage("research");show("progress");
+  S.t0=Date.now();clearInterval(S.timer);S.timer=setInterval(()=>{const s=Math.floor((Date.now()-S.t0)/1000);$("#c-time").textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0")},1000);
+}
+document.addEventListener("keydown",e=>{if(e.ctrlKey&&e.key==="Enter"&&$("#v-new").classList.contains("on"))$("#go").click()});
+$("#cancel").onclick=()=>{api().cancel();toast("Cancelling…")};
+
+window.Folio={event(e){
+  if(e.kind==="search"){S.searches++;$("#c-search").textContent=S.searches;
+    const eng=(e.extra||{}).engine||"Web";logLine(eng,eng==="DuckDuckGo"?"ddg":eng==="Brave"?"br":eng==="Google"?"gg":eng==="News"?"nw":"",e.text.split(" · ").slice(1).join(" · "));}
+  else if(e.kind==="cr_progress"){$("#cr-status").textContent=e.text}
+  else if(e.kind==="cr_closed"){$("#cr-status").textContent="Classroom window closed. Open it again to load assignments."}
+  else if(e.kind==="sources"){$("#c-src").textContent=e.text}
+  else if(e.kind==="thought"){logLine("Note","th",e.text)}
+  else if(e.kind==="stage"){setStage(e.text);
+    if(e.text==="write")$("#p-title").textContent="Writing to your rubric…";
+    if(e.text==="build"){$("#p-title").textContent="Designing your files…";logLine("Design","th","Building slideshow and one-pager")}}
+  else if(e.kind==="done"){clearInterval(S.timer);S.revising=false;showResult(e.project);
+    toast(e.revised?"Revised — your files are updated":"Done — saved to your Library")}
+  else if(e.kind==="error"){clearInterval(S.timer);toast(e.text,true);show(S.revising?"result":"new");S.revising=false}
+  else if(e.kind==="g_signed_in"){toast("Signed in as "+((e.profile||{}).email||"Google user"));gRefresh()}
+  else if(e.kind==="g_error"){toast(e.text,true);$("#g-wait").style.display="none"}
+  else if(e.kind==="cancelled"){clearInterval(S.timer);toast("Cancelled");show(S.revising?"result":"new");S.revising=false}
+}};
+
+/* results */
+const FILEMETA={pptx:["PowerPoint","Slideshow","#C4462C"],pdf:["PDF","One-pager","#D93B3B"],docx:["Word","One-pager (editable)","#2B5BD7"]};
+function showResult(p){
+  S.current=p; const spec=p.spec||{};
+  $("#r-title").textContent=spec.title||"Project";
+  $("#r-sub").textContent=[(spec.slides||[]).length?((spec.slides.length+1)+" slides"):"",(spec.sources||[]).length+" sources",
+    p.photos?p.photos+" photo"+(p.photos===1?"":"s"):"",p.theme+" theme"].filter(Boolean).join(" · ");
+  $("#rv-undo").style.display=p.can_undo?"":"none";
+  handIn(p);
+  const fl=$("#r-files");fl.innerHTML="";
+  Object.entries(p.files||{}).forEach(([ext,path])=>{const m=FILEMETA[ext];if(!m)return;
+    const d=document.createElement("div");d.className="card file";
+    d.innerHTML=`<div class="ic" style="background:${m[2]}">${ext.toUpperCase()}</div><div><b>${m[1]}</b><small>Open in ${m[0]}</small></div>`;
+    d.onclick=()=>api().open_path(path);fl.appendChild(d)});
+  const g=p.google||{};
+  [["slides","Google Slides","#F4B400"],["doc","Google Docs","#4285F4"]].forEach(([k,label,c])=>{const f=g[k];if(!f||!f.url)return;
+    const d=document.createElement("div");d.className="card file";
+    d.innerHTML=`<div class="ic" style="background:${c}">${k==="slides"?"S":"D"}</div><div style="min-width:0"><b>${label}</b><small>${esc(f.note||"Open in your Drive")}</small></div>`;
+    d.onclick=()=>api().open_url(f.url);fl.prepend(d)});
+  if(g.manual){const d=document.createElement("div");d.className="card file";
+    d.innerHTML=`<div class="ic" style="background:#0F9D58">G</div><div style="min-width:0"><b>Add to Google Drive</b><small>Opens Drive and this folder — drag the files in</small></div>`;
+    d.onclick=()=>api().g_manual_upload(p.folder);fl.prepend(d)}
+  if(g.error)toast(g.error,true);
+  renderChecks(spec); renderSlides(p); if(CO.folder!==p.folder){CO.qs=[];CO.folder=p.folder}
+  const rb=spec.rubric_check||[]; const box=$("#r-rubric");box.innerHTML="";
+  if(!rb.length)box.innerHTML='<div class="rub"><p>No rubric was provided.</p></div>';
+  let pts=0; rb.forEach(r=>{const st=(r.status||"met").toLowerCase(); pts+=st==="met"?1:st==="partial"?.5:0;
+    const d=document.createElement("div");d.className="rub";
+    d.innerHTML=`<span class="pill ${st}">${st}</span><div><b>${esc(r.criterion)}</b><p>${esc(r.where)}</p>${r.tip&&st!=="met"?`<div class="t">Tip: ${esc(r.tip)}</div>`:""}</div>`;box.appendChild(d)});
+  const pct=rb.length?Math.round(pts/rb.length*100):100; $("#r-ring").style.setProperty("--p",pct); $("#r-pct").textContent=pct+"%";
+  const BADGE={ok:["✓","Link works"],blocked:["?","The site blocks automated checks; open it to confirm"],dead:["✕","Dead link"]};
+  const sb=$("#r-sources");sb.innerHTML="";(spec.sources||[]).forEach(s=>{const a=document.createElement("a");a.className="src";
+    let host="";try{host=new URL(s.url).hostname.replace("www.","")}catch(e){}
+    const c=s._check&&BADGE[s._check.status];
+    a.title=c?c[1]+(s._replacement?" · added in place of a dead link":""):"Not checked yet";
+    a.innerHTML=`<b>${c?`<span class="badge ${s._check.status}">${c[0]}</span>`:""}${esc(s.title||s.url)}</b><small>${esc(s.publisher||host)}${s._replacement?" · replacement":""}</small>`;
+    a.onclick=()=>api().open_url(s.url);sb.appendChild(a)});
+  const rm=spec._removed_sources||[];
+  $("#r-removed").innerHTML=rm.length?`<div class="removed"><b>Removed:</b> ${rm.map(s=>`<s>${esc(s.title||s.url)}</s> <i>(${esc((s._check||{}).why||"dead link")})</i>`).join(", ")}. Double-check any fact that came only from these.</div>`:"";
+  const checked=(spec.sources||[]).some(s=>s._check);
+  $("#r-srccount").textContent=(spec.sources||[]).length+" cited"+(checked?"":" · not checked");
+  themeCards($("#r-themes"),async n=>{const r=await api().restyle(p.folder,n);if(r.error)return toast(r.error,true);showResult(r);toast("Restyled in "+n)},p.theme);
+  show("result");
+}
+$("#r-folder").onclick=()=>S.current&&api().open_path(S.current.folder);
+$("#r-new").onclick=()=>show("new");
+$$("#rv-chips button").forEach(b=>b.onclick=()=>{const t=$("#rv-text");t.value=(t.value.trim()?t.value.trim()+" ":"")+b.textContent+".";t.focus()});
+$("#rv-go").onclick=async()=>{
+  if(!S.current)return; const txt=$("#rv-text").value.trim();
+  if(!txt){toast("Type what you'd like changed.",true);return $("#rv-text").focus()}
+  const r=await api().revise(S.current.folder,txt); if(r&&r.error)return toast(r.error,true);
+  $("#rv-text").value=""; S.revising=true; startProgress("Revising your project…");
+};
+$("#rv-text").addEventListener("keydown",e=>{if(e.ctrlKey&&e.key==="Enter")$("#rv-go").click()});
+$("#rv-undo").onclick=async()=>{
+  if(!S.current)return; const r=await api().undo(S.current.folder);
+  if(r&&r.error)return toast(r.error,true); showResult(r); toast("Undone — back to the previous version");
+};
+
+/* library */
+async function loadLibrary(){
+  const items=await api().list_projects(); const el=$("#lib"); el.innerHTML="";
+  if(!items.length){el.innerHTML='<div class="empty" style="grid-column:1/-1">No projects yet. Make your first one from <b>New project</b>.</div>';return}
+  items.forEach(p=>{const c=THEMES[p.theme]||THEMES.Midnight;const d=document.createElement("div");d.className="card proj";
+    d.innerHTML=`<div class="thumb" style="background:${c.bg};color:${c.t};border:1px solid rgba(0,0,0,.06)"><i style="display:block;width:24px;height:3px;background:${c.a};border-radius:2px;margin-bottom:8px"></i><b>${esc(p.title)}</b></div><small>${esc(p.date)} · ${esc(p.kind)}</small>`;
+    d.onclick=async()=>{const r=await api().load_project(p.folder);if(r.error)return toast(r.error,true);showResult(r)};el.appendChild(d)});
+}
+
+/* ================= Google ================= */
+const G={status:null,files:[],sel:null,kind:"all",target:null};
+const KN={doc:"Google Doc",slides:"Google Slides",sheet:"Google Sheet"}, KL={doc:"D",slides:"S",sheet:"X"};
+$$("[data-url]").forEach(a=>a.onclick=()=>api().open_url(a.dataset.url));
+seg("#gkind"); seg("#dest");
+$("#gkind").addEventListener("change",()=>{G.kind=$("#gkind button.on").dataset.k;loadFiles()});
+let qT;$("#gq").oninput=()=>{clearTimeout(qT);qT=setTimeout(loadFiles,350)};
+$("#g-refresh").onclick=()=>loadFiles();
+function when(iso){const d=new Date(iso),n=new Date();const days=Math.floor((n-d)/864e5);
+  if(days<1)return "Today "+d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});if(days<7)return days===1?"Yesterday":days+" days ago";
+  return d.toLocaleDateString([],{month:"short",day:"numeric",year:d.getFullYear()===n.getFullYear()?undefined:"numeric"})}
+async function gRefresh(){
+  G.status=await api().g_status(); const s=G.status;
+  const man=s.manual&&!s.connected;
+  $("#g-manual").style.display=man?"block":"none";
+  $("#g-setup").style.display=!man&&!s.has_client?"block":"none";
+  $("#g-signin").style.display=!man&&s.has_client&&!s.connected?"block":"none";
+  $("#g-dash").style.display=s.connected?"block":"none";
+  $("#g-wait").style.display="none";
+  if(s.connected){const p=s.profile||{};$("#g-name").textContent=p.name||"";$("#g-mail").textContent=p.email||"";
+    $("#g-av").innerHTML=p.picture?`<img src="${esc(p.picture)}" referrerpolicy="no-referrer">`:esc((p.name||"?")[0]);loadFiles()}
+}
+async function loadFiles(){
+  const box=$("#gfiles");
+  const r=await api().g_list(G.kind,$("#gq").value.trim());
+  if(r&&r.error){if(r.error==="signed_out"){toast("Your Google sign-in expired. Please sign in again.",true);return gRefresh()}
+    $("#g-warn").style.display="block";$("#g-warn").textContent=r.error;return}
+  $("#g-warn").style.display="none"; G.files=r; box.innerHTML="";
+  if(G.kind!=="sheet"&&!$("#gq").value.trim()){
+    [["doc","New document","#4285F4"],["slides","New presentation","#F4B400"]].forEach(([k,label,c])=>{
+      if(G.kind!=="all"&&G.kind!==k)return;
+      const t=document.createElement("div");t.className="card gfile newtile";
+      t.innerHTML=`<div class="plus" style="background:${c}">+</div>${label}`;
+      t.onclick=async()=>{const name=k==="slides"?"Untitled presentation":"Untitled document";
+        const f=await api().g_create(k,name);if(f.error)return toast(f.error,true);
+        f.modified=new Date().toISOString();toast("Created a new "+KN[k]);useTarget(f)};
+      box.appendChild(t)});
+  }
+  if(!r.length&&box.children.length===0)box.innerHTML='<div class="empty" style="grid-column:1/-1">No files found.</div>';
+  r.forEach(f=>{const c=document.createElement("div");c.className="card gfile";
+    c.innerHTML=`<div class="gt"><div class="gbig ${f.kind}"></div></div><div class="gb"><span class="gico ${f.kind}">${KL[f.kind]||""}</span><div style="min-width:0"><b>${esc(f.name)}</b><small>${when(f.modified)}${f.owner&&f.owner!=="me"?" · "+esc(f.owner):""}</small></div></div>`;
+    c.onclick=()=>{$$(".gfile").forEach(x=>x.classList.remove("sel"));c.classList.add("sel");selectFile(f)};
+    c.ondblclick=()=>f.kind!=="sheet"&&useTarget(f);
+    box.appendChild(c);
+    if(f.thumb)api().g_thumb(f.thumb).then(d=>{if(d)c.querySelector(".gt").innerHTML=`<img src="${d}">`})});
+}
+function selectFile(f){G.sel=f;$("#dock").classList.add("on");$("#d-ico").className="gico "+f.kind;$("#d-ico").textContent=KL[f.kind]||"";
+  $("#d-name").textContent=f.name;$("#d-meta").textContent=KN[f.kind]+" · edited "+when(f.modified);
+  $("#d-use").style.display=f.kind==="sheet"?"none":"";$("#d-meta").textContent+=f.kind==="sheet"?" · Folio can't write to Sheets yet":""}
+$("#d-open").onclick=()=>G.sel&&api().open_url(G.sel.url);
+$("#d-use").onclick=()=>G.sel&&useTarget(G.sel);
+function useTarget(f){G.target=f;$$("#dest button").forEach((b,i)=>b.classList.toggle("on",i===1));
+  $("#target").classList.add("on");$("#tico").className="gico "+f.kind;$("#tico").textContent=KL[f.kind];$("#tname").textContent=f.name;
+  if(f.kind==="slides"){$$("#out button").forEach(b=>b.classList.toggle("on",b.textContent==="Slideshow"))}
+  if(f.kind==="doc"){$$("#out button").forEach(b=>b.classList.toggle("on",b.textContent==="One-pager"))}
+  $("#out").dispatchEvent(new Event("change"));show("new");toast("Folio will add its work to “"+f.name+"”")}
+$("#tclear").onclick=()=>{G.target=null;$("#target").classList.remove("on")};
+$("#dest").addEventListener("change",async()=>{
+  if(segVal("#dest")==="Google Drive"){const s=await api().g_status();
+    if(!s.connected&&s.manual){toast("Folio will save the files for you to drag into Google Drive")}
+    else if(!s.connected){toast("Connect your Google account first.",true);$$("#dest button").forEach((b,i)=>b.classList.toggle("on",i===0));show("drive")}}
+  else{G.target=null;$("#target").classList.remove("on")}});
+$("#g-load").onclick=async()=>{const r=await api().g_import_client();if(!r)return;if(r.error)return toast(r.error,true);toast("Setup file loaded");gRefresh()};
+$("#g-in").onclick=async()=>{$("#g-wait").style.display="block";await api().g_sign_in()};
+$("#g-out").onclick=async()=>{await api().g_sign_out();G.target=null;$("#target").classList.remove("on");gRefresh();toast("Signed out of Google")};
+$$(".g-man").forEach(a=>a.onclick=async()=>{await api().g_set_manual(true);await gRefresh();
+  $$("#dest button").forEach((b,i)=>b.classList.toggle("on",i===1));toast("No-sign-in mode on. Folio will save files for you to drag into Drive.")});
+$("#gm-open").onclick=()=>api().g_manual_upload();
+$("#gm-off").onclick=async()=>{await api().g_set_manual(false);gRefresh()};
+$("#g-redo").onclick=()=>{$("#g-setup").style.display="block";$("#g-signin").style.display="none"};
+
+/* ================= Slide strip + editor ================= */
+const SL={sel:-1,thumbs:{},opts:null};
+const LAYOUT_NAME={title:"Title",section:"Section",bullets:"Bullets",two_column:"Two columns",big_stat:"Big number",quote:"Quote",timeline:"Timeline",image:"Photo",closing:"Closing"};
+async function renderSlides(p){
+  const spec=p.spec||{}, slides=spec.slides||[], card=$("#r-slides-card");
+  card.style.display=slides.length&&(p.files||{}).pptx?"":"none"; if(!slides.length)return;
+  const th=THEMES[p.theme]||THEMES.Midnight;
+  $("#sl-count").textContent=slides.length+" slides"+((spec.current_event||{}).summary?" + In the News":"");
+  const strip=$("#sl-strip"); strip.innerHTML="";
+  slides.forEach((s,i)=>{const d=document.createElement("div");d.className="sl-thumb"+(i===SL.sel?" on":"");
+    d.style.background=th.bg;d.style.color=th.t;
+    const pts=(s.points||[]).slice(0,3).map(x=>`<i>${esc(x)}</i>`).join("");
+    d.innerHTML=`<div class="sl-img" data-i="${i}"></div><div class="sl-txt"><span style="background:${th.a}"></span><b>${esc(s.heading||"")}</b>${s.stat?`<em style="color:${th.a}">${esc(s.stat)}</em>`:""}${pts}</div><small>${i+1} · ${LAYOUT_NAME[s.layout]||s.layout}</small>`;
+    d.onclick=()=>openSlide(i);strip.appendChild(d)});
+  if(SL.sel>=0&&SL.sel<slides.length)openSlide(SL.sel,true);else $("#sl-editor").innerHTML="";
+  SL.thumbs=await api().thumbs(p.folder)||{};
+  $$("#sl-strip .sl-img").forEach(el=>{const u=SL.thumbs[el.dataset.i];if(u){el.style.backgroundImage=`url(${u})`;el.classList.add("has")}});
+}
+function openSlide(i,keep){
+  SL.sel=i; const s=(S.current.spec.slides||[])[i]; if(!s)return;
+  $$("#sl-strip .sl-thumb").forEach((t,j)=>t.classList.toggle("on",j===i));
+  const field=(k,label,rows)=>s[k]!==undefined||["heading","notes"].includes(k)?`<label class="sl-f"><span>${label}</span><textarea data-k="${k}" rows="${rows||1}">${esc(s[k]||"")}</textarea></label>`:"";
+  const pts=s.points?`<label class="sl-f"><span>Bullets (one per line)</span><textarea data-k="points" rows="${Math.max(3,s.points.length+1)}">${esc(s.points.join("\n"))}</textarea></label>`:"";
+  const col=k=>s[k]?`<label class="sl-f"><span>${k==="left"?"Left":"Right"} column (first line = its heading)</span><textarea data-k="${k}" rows="4">${esc([s[k].heading||""].concat(s[k].points||[]).join("\n"))}</textarea></label>`:"";
+  const steps=s.steps?`<label class="sl-f"><span>Timeline (one step per line: Label: text)</span><textarea data-k="steps" rows="${s.steps.length+1}">${esc(s.steps.map(x=>(x.label||"")+": "+(x.text||"")).join("\n"))}</textarea></label>`:"";
+  const thumb=SL.thumbs[String(i)];
+  $("#sl-editor").innerHTML=`<div class="sl-ed-grid"><div>
+      ${field("heading","Title")}${field("subheading","Subtitle")}${field("stat","Big number")}${field("stat_label","Number label")}
+      ${field("quote","Quote",3)}${field("attribution","Quote by")}${pts}${col("left")}${col("right")}${steps}${field("body","Text",3)}${field("notes","Speaker notes",3)}
+      <div class="acts"><button class="btn acc" id="sl-save">Save slide ${i+1}</button><button class="btn" id="sl-close">Close</button></div></div>
+    <div class="sl-photo"><span class="sl-plabel">Photo</span>
+      <div class="sl-pnow" style="${thumb?`background-image:url(${thumb})`:""}">${thumb?"":"No photo"}</div>
+      ${s._image?`<small>${esc((s._image.creator||"")+" / "+(s._image.site||"")+" ("+(s._image.license||"")+")")}</small>`:""}
+      <div class="sl-psearch"><input type="text" id="sl-q" value="${esc(s.image_query||s.heading||"")}" placeholder="Search photos"><button class="btn" id="sl-find">Find</button></div>
+      <div class="sl-opts" id="sl-opts"></div>
+      ${s._image?'<button class="ghost" id="sl-nophoto">Remove photo</button>':""}
+    </div></div>`;
+  $("#sl-close").onclick=()=>{SL.sel=-1;$("#sl-editor").innerHTML="";$$("#sl-strip .sl-thumb").forEach(t=>t.classList.remove("on"))};
+  $("#sl-save").onclick=async()=>{const f={};$$("#sl-editor textarea[data-k]").forEach(t=>{f[t.dataset.k]=t.dataset.k==="points"?t.value.split("\n"):t.value});
+    $("#sl-save").textContent="Saving…";const r=await api().edit_slide(S.current.folder,i,f);
+    if(r&&r.error){$("#sl-save").textContent="Save slide "+(i+1);return toast(r.error,true)}showResult(r);toast("Slide "+(i+1)+" saved — files rebuilt")};
+  $("#sl-find").onclick=()=>findPhotos(i);
+  $("#sl-q").onkeydown=e=>{if(e.key==="Enter")findPhotos(i)};
+  const np=$("#sl-nophoto");if(np)np.onclick=async()=>{const r=await api().set_photo(S.current.folder,i,null);if(r&&r.error)return toast(r.error,true);showResult(r);toast("Photo removed")};
+  if(!keep)$("#sl-editor").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+async function findPhotos(i){
+  const q=$("#sl-q").value.trim(); if(!q)return;
+  const box=$("#sl-opts"); box.innerHTML='<div class="hint">Searching freely licensed photos…</div>';
+  const r=await api().photo_options(q); if(r&&r.error){box.innerHTML="";return toast(r.error,true)}
+  const opts=r.options||[]; if(!opts.length){box.innerHTML='<div class="hint">No matching photos. Try other words.</div>';return}
+  box.innerHTML="";opts.forEach(o=>{const b=document.createElement("button");b.className="sl-opt";b.style.backgroundImage=`url("${o.url}")`;
+    b.title=`${o.title} — ${o.creator} (${o.license})`;
+    b.onclick=async()=>{box.innerHTML='<div class="hint">Adding photo…</div>';const r=await api().set_photo(S.current.folder,i,Object.assign({},o,{query:q}));
+      if(r&&r.error){box.innerHTML="";return toast(r.error,true)}showResult(r);toast("Photo swapped")};box.appendChild(b)});
+}
+
+/* ================= Home dashboard ================= */
+async function loadHome(){
+  const h=new Date().getHours();
+  $("#hm-hello").textContent=(h<12?"Good morning":h<18?"Good afternoon":"Good evening")+((S.settings.prefs||{}).name?", "+S.settings.prefs.name.split(" ")[0]:"");
+  $("#hm-date").textContent=new Date().toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"});
+  const r=await api().home(); const c=r.classroom||{};
+  CR.lists=CR.lists||((c.missing||c.assigned)?c:null);
+  $("#hm-missing").textContent=c.missing?c.missing.length:"–"; $("#hm-assigned").textContent=c.assigned?c.assigned.length:"–";
+  const items=await api().list_projects(); $("#hm-projects").textContent=items.length;
+  $("#hm-when").textContent=c.when?"as of "+new Date(c.when).toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"";
+  const nx=$("#hm-next"); nx.innerHTML="";
+  const up=[...(c.missing||[]).map(x=>({...x,miss:true})),...(c.assigned||[])].slice(0,6);
+  if(!up.length)nx.innerHTML='<div class="hint" style="text-align:left">Click <b>Refresh from Classroom</b> to see what\'s due.</div>';
+  up.forEach(it=>{const d=document.createElement("div");d.className="hm-row"+(it.miss?" miss":"");
+    d.innerHTML=`<div style="min-width:0;flex:1"><b>${esc(it.title)}</b><small>${esc(it.course)} · <span>${it.miss?"Missing · ":""}${esc(it.due||"No due date")}</span></small></div><button class="btn acc">Start</button>`;
+    const b=d.querySelector("button");b.onclick=()=>crImport(it,b);nx.appendChild(d)});
+  const rc=$("#hm-recent"); rc.innerHTML=items.length?"":'<div class="hint" style="text-align:left">No projects yet.</div>';
+  items.slice(0,5).forEach(p=>{const t=THEMES[p.theme]||THEMES.Midnight;const d=document.createElement("div");d.className="hm-proj";
+    d.innerHTML=`<span style="background:${t.bg};border-color:${t.a}"></span><div style="min-width:0"><b>${esc(p.title)}</b><small>${esc(p.date)} · ${esc(p.kind)}</small></div>`;
+    d.onclick=async()=>{const r=await api().load_project(p.folder);if(r.error)return toast(r.error,true);showResult(r)};rc.appendChild(d)});
+}
+$("#hm-new").onclick=()=>show("new");
+$("#hm-lib").onclick=()=>show("library");
+$("#hm-refresh").onclick=async()=>{show("classroom");await $("#cr-load").onclick();show("home")};
+
+/* ================= Rehearse + quiz ================= */
+const CO={i:0,t0:0,ts:0,timer:null,running:false,qs:[],known:0,seen:0};
+const fmt=s=>Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");
+function coachSlides(){const sp=S.current.spec||{};const sl=[...(sp.slides||[])];
+  const ce=sp.current_event||{}; if(ce.summary){const at=sl.findIndex(x=>x.layout==="closing");sl.splice(at<0?sl.length:at,0,{layout:"news",heading:"In the News: "+(ce.headline||""),body:ce.summary,notes:ce.connection,_news:true})}
+  return sl}
+function coachDraw(){
+  const sl=coachSlides(), s=sl[CO.i]||{}, th=THEMES[S.current.theme]||THEMES.Midnight;
+  const img=s._news?SL.thumbs.news:SL.thumbs[String((S.current.spec.slides||[]).indexOf(s))];
+  const cols=["left","right"].filter(k=>s[k]).map(k=>`<div class="co-col"><b>${esc(s[k].heading||"")}</b>${(s[k].points||[]).map(x=>`<i>${esc(x)}</i>`).join("")}</div>`).join("");
+  const steps=(s.steps||[]).map(x=>`<i><b>${esc(x.label||"")}</b> ${esc(x.text||"")}</i>`).join("");
+  $("#co-stage").innerHTML=`<div class="co-slide" style="background:${th.bg};color:${th.t}">${img?`<div class="co-img" style="background-image:url(${img})"></div>`:""}
+    <div class="co-txt${img?" withimg":""}"><span style="background:${th.a}"></span><h2>${esc(s.heading||"")}</h2>${s.subheading?`<p>${esc(s.subheading)}</p>`:""}
+    ${s.stat?`<em style="color:${th.a}">${esc(s.stat)}</em><p>${esc(s.stat_label||"")}</p>`:""}${s.quote?`<p class="q">“${esc(s.quote)}”</p><p>${esc(s.attribution||"")}</p>`:""}
+    ${(s.points||[]).map(x=>`<i>${esc(x)}</i>`).join("")}${cols?`<div class="co-cols">${cols}</div>`:""}${steps}${s.body&&!s.quote?`<p>${esc(s.body)}</p>`:""}</div></div>`;
+  $("#co-notes").innerHTML=s.notes?esc(s.notes).replace(/\n/g,"<br>"):'<span class="hint">No speaker notes for this slide. Add some in the slide editor.</span>';
+  $("#co-pos").textContent=(CO.i+1)+" / "+sl.length;
+  CO.ts=performance.now()/1000;
+}
+function coachTick(){const now=performance.now()/1000;const tot=now-CO.t0;
+  $("#co-clock").textContent=fmt(tot);$("#co-slideclock").textContent=fmt(now-CO.ts);
+  const n=coachSlides().length, target=parseFloat($("#co-min").value)*60||300, should=(CO.i+1)/n*target;
+  $("#co-pace").textContent=tot>should+20?"· a bit slow":tot<should-60&&CO.i>0?"· a bit fast":"· on pace";}
+function openCoach(){if(!S.current)return;CO.i=0;$("#co-title").textContent="Rehearse: "+(S.current.spec.title||"");
+  setSeg("#co-mode","Rehearse");$("#co-rehearse").style.display="";$("#co-quiz").style.display="none";
+  clearInterval(CO.timer);CO.running=false;$("#co-start").textContent="Start timer";$("#co-clock").textContent="0:00";$("#co-slideclock").textContent="0:00";$("#co-pace").textContent="";
+  show("coach");coachDraw()}
+function coachGo(d){const n=coachSlides().length;CO.i=Math.max(0,Math.min(n-1,CO.i+d));coachDraw()}
+$("#r-coach").onclick=openCoach;
+$("#co-exit").onclick=()=>{clearInterval(CO.timer);CO.running=false;show("result")};
+$("#co-prev").onclick=()=>coachGo(-1);$("#co-next").onclick=()=>coachGo(1);
+$("#co-start").onclick=()=>{if(CO.running){clearInterval(CO.timer);CO.running=false;$("#co-start").textContent="Start timer";return}
+  CO.t0=performance.now()/1000;CO.ts=CO.t0;CO.running=true;$("#co-start").textContent="Stop";CO.timer=setInterval(coachTick,250)};
+document.addEventListener("keydown",e=>{if(!$("#v-coach").classList.contains("on")||/INPUT|TEXTAREA/.test(document.activeElement.tagName))return;
+  if(e.key==="ArrowRight"||e.key===" "){e.preventDefault();coachGo(1)}else if(e.key==="ArrowLeft"){e.preventDefault();coachGo(-1)}});
+seg("#co-mode");
+$("#co-mode").addEventListener("change",()=>{const q=segVal("#co-mode")==="Quiz me";$("#co-rehearse").style.display=q?"none":"";$("#co-quiz").style.display=q?"":"none";if(q&&!CO.qs.length)loadQuiz(false)});
+async function loadQuiz(fresh){
+  $("#co-qs").innerHTML='<div class="hint" style="text-align:left">Writing questions about your project…</div>';
+  const r=await api().quiz(S.current.folder,fresh); if(r&&r.error){$("#co-qs").innerHTML="";return toast(r.error,true)}
+  CO.qs=r.questions||[];CO.known=0;CO.seen=0;drawQuiz()}
+function drawQuiz(){const box=$("#co-qs");box.innerHTML="";$("#co-score").textContent="";
+  CO.qs.forEach((q,i)=>{const d=document.createElement("div");d.className="co-q";
+    d.innerHTML=`<div class="co-qq"><span>${i+1}</span>${esc(q.q)}</div><div class="co-qa">${esc(q.a)}</div><div class="co-qb"><button class="btn">Show answer</button></div>`;
+    d.querySelector("button").onclick=()=>{d.classList.add("open");d.querySelector(".co-qb").innerHTML='<button class="btn" data-k="1">I knew it</button><button class="btn" data-k="0">Not yet</button>';
+      d.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{CO.seen++;CO.known+=+b.dataset.k;d.classList.add(+b.dataset.k?"knew":"miss");d.querySelector(".co-qb").innerHTML="";
+        $("#co-score").textContent=`${CO.known} of ${CO.seen} known`})};box.appendChild(d)})}
+$("#co-newq").onclick=()=>loadQuiz(true);
+
+/* ================= Quality check ================= */
+function renderChecks(spec){
+  const rv=spec._review, el=$("#r-checks"); if(!rv){el.innerHTML='<div class="qc-note">Not checked yet. Click Re-check to grade this project strictly.</div>';return}
+  const facts=rv.facts||[], bad=facts.filter(f=>f.status==="unverified"), good=facts.filter(f=>f.status==="supported");
+  let h='<div class="qc">';
+  (rv.checks||[]).forEach(c=>{h+=`<div class="qc-row ${c.ok?"ok":"bad"}"><span>${c.ok?"✓":"!"}</span>${esc(c.label)}</div>`});
+  if(facts.length)h+=`<div class="qc-row ${bad.length?"bad":"ok"}"><span>${bad.length?"!":"✓"}</span>${good.length} of ${facts.length} numbers & dates found in the sources</div>`;
+  const cl=rv.claims||[], wrong=cl.filter(c=>c.verdict==="contradicted"), unsure=cl.filter(c=>c.verdict==="not_found");
+  if(cl.length)h+=`<div class="qc-row ${wrong.length?"bad":"ok"}"><span>${wrong.length?"!":"✓"}</span>${cl.length-wrong.length-unsure.length} of ${cl.length} key claims backed by the sources${wrong.length?` · ${wrong.length} contradicted`:""}</div>`;
+  h+='</div>';
+  if(wrong.length)h+=`<div class="qc-facts"><b>Your sources say otherwise:</b>${wrong.map(c=>`<div>• <i>${esc(c.where||"")}:</i> ${esc(c.claim)}<br><small>Source: ${esc(c.evidence||"")}</small></div>`).join("")}</div>`;
+  if(unsure.length)h+=`<div class="qc-facts soft"><b>Couldn't confirm in the sources</b> (may still be true; check before you hand it in):${unsure.map(c=>`<div>• <i>${esc(c.where||"")}:</i> ${esc(c.claim)}</div>`).join("")}</div>`;
+  if(bad.length)h+=`<div class="qc-facts"><b>Double-check these</b> (not found in the cited sources):${bad.map(f=>`<div>• <i>${esc(f.where)}:</i> ${esc(f.claim)}</div>`).join("")}</div>`;
+  const notes=[];
+  if(rv.auto_fixed)notes.push(`Folio fixed ${rv.auto_fixed} problem${rv.auto_fixed>1?"s":""} automatically before you saw it.`);
+  if(rv.fix_rejected)notes.push("Folio tried an automatic fix, but it came out worse, so it kept this version.");
+  notes.push(rv.graded?"Rubric graded by a separate strict check.":(rv.grade_error?"Couldn't run the strict grader: "+esc(rv.grade_error):"No rubric given, so only the counts were checked."));
+  h+=`<div class="qc-note">${notes.join(" ")}</div>`;
+  if((rv.fixes||[]).length)h+=`<div class="qc-fix"><button class="btn acc" id="r-fixall">Fix ${rv.fixes.length} issue${rv.fixes.length>1?"s":""}</button></div>`;
+  el.innerHTML=h;
+  const fb=$("#r-fixall"); if(fb)fb.onclick=async()=>{
+    const req="Fix these problems a strict reviewer found. Keep everything that's already good.\n- "+rv.fixes.join("\n- ");
+    const r=await api().revise(S.current.folder,req); if(r&&r.error)return toast(r.error,true); S.revising=true; startProgress("Fixing what the check found…")};
+}
+$("#r-recheck").onclick=async()=>{if(!S.current)return;$("#r-recheck").textContent="Checking…";
+  const r=await api().recheck(S.current.folder);$("#r-recheck").textContent="Re-check";
+  if(r&&r.error)return toast(r.error,true);showResult(r);toast("Checked")};
+
+/* ================= Sources ================= */
+$("#r-check").onclick=async()=>{
+  if(!S.current)return; $("#r-check").textContent="Checking…";
+  const r=await api().check_sources(S.current.folder); $("#r-check").textContent="Check links";
+  if(r&&r.error)return toast(r.error,true); showResult(r);
+  const c=r.check||{}; toast(`${c.ok||0} working · ${c.blocked||0} couldn't verify · ${c.dead||0} dead removed`+(c.replaced?` (${c.replaced} replaced)`:""));
+};
+
+/* ================= Classroom ================= */
+const CR={lists:null,imported:null};
+$("#cr-open").onclick=async()=>{await api().cr_open();$("#cr-status").textContent="Sign in there if Google asks, then click Load my assignments."};
+function crRow(it,missing){
+  const d=document.createElement("div");d.className="card cr-row"+(missing?" missing":"");
+  d.innerHTML=`<b>${esc(it.title)}</b><small>${esc(it.course)}</small><span class="due">${missing?"Missing · ":""}${esc(it.due||"No due date")}</span>
+    <div class="acts"><button class="btn acc">Start project</button><button class="btn">Open</button></div>`;
+  const [go,open]=d.querySelectorAll("button");
+  go.onclick=()=>crImport(it,go); open.onclick=()=>api().cr_show(it.href);
+  return d;
+}
+function crGroup(title,items,missing,note){
+  const box=$("#cr-lists");
+  const g=document.createElement("div");g.className="cr-group";g.innerHTML=`<h3>${title}</h3><small>${items.length}${note?" · "+note:""}</small>`;box.appendChild(g);
+  const rows=document.createElement("div");rows.className="cr-rows";items.forEach(it=>rows.appendChild(crRow(it,missing)));box.appendChild(rows);
+}
+$("#cr-load").onclick=async()=>{
+  const st=await api().cr_status(); if(!st.open){await api().cr_open()}
+  $("#cr-status").textContent="Reading your To-do list…"; $("#cr-load").textContent="Loading…";
+  const r=await api().cr_list(); $("#cr-load").textContent="Load my assignments";
+  if(r&&r.error==="signin"){$("#cr-status").textContent="Sign in to your school Google account in the Classroom window, then click Load my assignments again.";return}
+  if(r&&r.error){$("#cr-status").textContent="";return toast(r.error,true)}
+  CR.lists=r; $("#cr-lists").innerHTML="";
+  const blank=(r.missing_blank||r.assigned_blank)&&!(r.missing||[]).length&&!(r.assigned||[]).length;
+  $("#cr-status").textContent=blank?"Classroom didn't finish showing the list. In the Classroom window click “To-do”, then Load again.":"";
+  $("#cr-help").style.display=(r.missing||[]).length||(r.assigned||[]).length?"none":"";
+  if((r.missing||[]).length)crGroup("Missing",r.missing,true,"past due");
+  if((r.assigned||[]).length)crGroup("Assigned",r.assigned,false,"not turned in");
+  if(!blank&&!(r.missing||[]).length&&!(r.assigned||[]).length)$("#cr-status").textContent="Nothing due — you're all caught up.";
+};
+async function crImport(it,btn){
+  const st=await api().cr_status(); if(!st.open){await api().cr_open();await new Promise(r=>setTimeout(r,3500))}
+  btn.textContent="Reading…";btn.classList.add("off");$("#cr-status").textContent="Reading “"+it.title+"”…";
+  const r=await api().cr_import(it.href);btn.textContent="Start project";btn.classList.remove("off");$("#cr-status").textContent="";
+  if(r&&r.error==="signin")return toast("Sign in to Classroom in the Classroom window first.",true);
+  if(r&&r.error){ // Classroom's page may have changed: offer the manual route instead of a dead end
+    toast("Couldn't read that assignment automatically.",true);
+    $("#cr-status").innerHTML=`Couldn't read “${esc(it.title)}” (${esc(r.error)}). Google may have changed the page. `+
+      `<a class="ghost" id="cr-manual">Copy the instructions in yourself</a>`;
+    const m=$("#cr-manual"); if(m)m.onclick=()=>{api().cr_show(it.href);$("#prompt").value=it.title+"\n\n";show("new");$("#prompt").focus();
+      toast("Paste the instructions and rubric from the Classroom window")};
+    return;
+  }
+  const f=r.fields||{}; $("#prompt").value=f.prompt||""; $("#rubric").value=f.rubric||""; $("#task").value=f.task||"";
+  CR.imported=r.assignment;
+  const a=r.assignment, read=(r.docs||[]).filter(d=>d.read).length, total=(r.docs||[]).length;
+  $("#imp-title").textContent="From Classroom: "+a.title;
+  $("#imp-meta").textContent=[a.points,a.due?"due "+a.due:"",total?`${read} of ${total} attachments read`:""].filter(Boolean).join(" · ")+(f.rubric?" · rubric found":" · no rubric found, add it if there is one");
+  $("#imported").classList.add("on"); show("new"); $("#prompt").scrollTop=0;
+  toast("Imported. Check the fields, then Research & create.");
+}
+/* Classroom files: write into the student's existing Google Docs (never new files, never Turn in) */
+const HI={docs:[],doc:null,edits:[]};
+function handIn(p){
+  const c=p.classroom, box=$("#handin"); box.style.display="";
+  if(!c){ // not linked yet: offer to link it to an assignment from the Classroom tab
+    $("#hi-name").textContent="Not linked to an assignment";$("#hi-meta").textContent="Link it to write into that assignment's files";
+    const items=[...((CR.lists||{}).missing||[]),...((CR.lists||{}).assigned||[])];
+    $("#hi-files").innerHTML=items.length?`<select id="hi-pick"><option value="">Pick an assignment…</option>${items.map((it,i)=>`<option value="${i}">${esc(it.title)} · ${esc(it.course)}</option>`).join("")}</select><div class="acts"><button class="btn acc" id="hi-link">Link</button></div>`
+      :'<div class="hint" style="text-align:left">Open the Classroom tab and click Load my assignments, then come back here to link this project.</div>';
+    if(items.length)$("#hi-link").onclick=async()=>{const i=$("#hi-pick").value;if(i==="")return toast("Pick an assignment.",true);
+      const r=await api().cr_link(p.folder,items[+i]);if(r&&r.error)return toast(r.error,true);showResult(r);toast("Linked to "+items[+i].title)};
+    $("#hi-draft").style.display="none";$("#hi-edits").innerHTML="";$("#hi-review").style.display="none";$("#hi-status").textContent="";
+    $("#hi-open").style.display="none";return}
+  $("#hi-open").style.display="";
+  $("#hi-name").textContent=c.title||"Classroom assignment";
+  const n=(c.edits||[]).reduce((a,e)=>a+(e.written||0),0);
+  $("#hi-meta").textContent=[c.points,c.due?"due "+c.due:"",n?`${n} addition${n>1?"s":""} written so far`:""].filter(Boolean).join(" · ");
+  HI.docs=[];HI.doc=null;HI.edits=[];
+  $("#hi-files").innerHTML='<button class="btn" id="hi-load">Show my files in this assignment</button>';$("#hi-load").onclick=hiLoad;
+  $("#hi-draft").style.display="none";$("#hi-edits").innerHTML="";$("#hi-review").style.display="none";$("#hi-status").textContent="";
+}
+async function hiLoad(){
+  $("#hi-status").textContent="Opening the assignment in the Classroom window…";
+  const r=await api().cr_docs(S.current.folder); $("#hi-status").textContent="";
+  if(r&&r.error)return toast(r.error,true);
+  HI.docs=r.docs||[]; const fl=$("#hi-files"); fl.innerHTML="";
+  if(!HI.docs.length){fl.innerHTML='<div class="hint" style="text-align:left">No files under Your work yet. Folio only edits files that are already there.</div>';return}
+  HI.docs.forEach((d,i)=>{const deck=/Slides/.test(d.kind), ok=deck||/Docs/.test(d.kind);const l=document.createElement("label");l.className="chk"+(ok?"":" dis");
+    l.innerHTML=`<input type="radio" name="hi-doc" ${ok?"":"disabled"}><b>${esc(d.name)}</b><small>${ok?(deck?"add slides to it":"fill it in"):"can't edit "+esc(d.kind)+" yet"}</small>`;
+    l.querySelector("input").onchange=()=>{HI.doc=d;$("#hi-edits").innerHTML="";$("#hi-review").style.display="none";
+      $("#hi-draft").style.display=deck?"none":"";if(deck)hiDeck()};fl.appendChild(l)});
+}
+// Slides deck: pick which project slides to add to the end of it
+function hiDeck(){
+  const sl=(S.current.spec.slides||[]); const box=$("#hi-edits"); box.innerHTML="";
+  const head=document.createElement("div");head.className="hint";head.style.textAlign="left";
+  head.textContent="Pick the slides to add to the end of your deck. Folio types the title, bullets and speaker notes; photos aren't copied.";
+  box.appendChild(head);
+  sl.forEach((s,i)=>{const d=document.createElement("label");d.className="chk hi-slide";
+    d.innerHTML=`<input type="checkbox" data-i="${i}" ${s.layout==="title"||s.layout==="closing"?"":"checked"}><b>${i+1}. ${esc(s.heading||"")}</b><small>${esc(LAYOUT_NAME[s.layout]||s.layout)}</small>`;box.appendChild(d)});
+  HI.edits=[]; HI.deck=true;
+  $("#hi-review").style.display="";$("#hi-ok").checked=false;$("#hi-write").classList.add("off");$("#hi-write").textContent="Add to my deck";
+  $("#hi-status").textContent="Nothing has been added yet.";
+}
+$("#hi-plan").onclick=async()=>{
+  if(!HI.doc)return toast("Pick a doc first.",true);
+  $("#hi-plan").textContent="Drafting…";$("#hi-plan").classList.add("off");
+  const r=await api().cr_plan(S.current.folder,HI.doc.url,$("#hi-req").value.trim());
+  $("#hi-plan").textContent="Draft additions";$("#hi-plan").classList.remove("off");$("#hi-status").textContent="";
+  if(r&&r.error)return toast(r.error,true);
+  HI.edits=r.edits||[]; const box=$("#hi-edits"); box.innerHTML="";
+  if(!HI.edits.length){box.innerHTML='<div class="hint" style="text-align:left">Nothing to add: the doc already looks answered.</div>';return}
+  HI.edits.forEach((e,i)=>{const d=document.createElement("div");d.className="hi-edit";
+    const where=e.replace?`<span class="hi-rep">Replace</span> “${esc(e.replace)}”`:`After: “${esc(e.after||"end of doc")}”`;
+    d.innerHTML=`<label><input type="checkbox" checked> <span>${where}</span></label><textarea rows="3"></textarea>${e.why?`<small>${esc(e.why)}</small>`:""}`;
+    d.querySelector("textarea").value=e.text; box.appendChild(d)});
+  $("#hi-review").style.display="";$("#hi-ok").checked=false;$("#hi-write").classList.add("off");$("#hi-write").textContent="Write into my doc";
+  $("#hi-status").textContent="Nothing has been written yet. Edit anything you want, uncheck what you don't want, then confirm.";
+};
+$("#hi-ok").onchange=()=>$("#hi-write").classList.toggle("off",!$("#hi-ok").checked);
+$("#hi-write").onclick=async()=>{
+  if(!$("#hi-ok").checked||!HI.doc)return;
+  if(/Slides/.test(HI.doc.kind)){
+    const idx=$$("#hi-edits input[data-i]:checked").map(x=>+x.dataset.i); if(!idx.length)return toast("Pick at least one slide.",true);
+    $("#hi-write").textContent="Adding…";$("#hi-write").classList.add("off");$("#hi-status").textContent="Adding slides in the Classroom window. Don't click there until this finishes.";
+    const r=await api().cr_add_slides(S.current.folder,HI.doc.url,idx);$("#hi-write").textContent="Add to my deck";
+    if(r&&r.error){$("#hi-write").classList.remove("off");$("#hi-status").textContent="";return toast(r.error,true)}
+    $("#hi-status").innerHTML=`Added ${r.added} slide${r.added===1?"":"s"} (${r.verified} confirmed in the deck)`+((r.skipped||[]).length?`. Skipped: ${r.skipped.map(esc).join(", ")}`:"")+
+      `. The deck is open in the Classroom window. Check it (File → Version history can undo), then <b>turn it in yourself</b>.`;
+    $("#hi-edits").innerHTML="";$("#hi-review").style.display="none";toast("Slides added. Check the deck, then turn it in yourself.");return}
+  const edits=$$("#hi-edits .hi-edit").map((d,i)=>({after:HI.edits[i].after,replace:HI.edits[i].replace||"",text:d.querySelector("textarea").value,on:d.querySelector("input").checked})).filter(e=>e.on&&e.text.trim());
+  if(!edits.length)return toast("Nothing selected to write.",true);
+  $("#hi-write").textContent="Writing…";$("#hi-write").classList.add("off");$("#hi-status").textContent="Typing into your doc in the Classroom window. Don't click there until this finishes.";
+  const r=await api().cr_write(S.current.folder,HI.doc.url,edits.map(({after,replace,text})=>({after,replace,text})));
+  $("#hi-write").textContent="Write into my doc";
+  if(r&&r.error){$("#hi-write").classList.remove("off");$("#hi-status").textContent="";return toast(r.error,true)}
+  const miss=(r.not_found||[]).length;
+  $("#hi-status").innerHTML=`Wrote ${r.written.length} addition${r.written.length===1?"":"s"} (${r.verified} confirmed in the doc)`+
+    (miss?`. Couldn't find ${miss} spot${miss>1?"s":""} in the doc: ${r.not_found.map(esc).join("; ")}`:"")+
+    `. The doc is open in the Classroom window. Look it over (Docs keeps version history), then <b>turn it in yourself in Classroom</b>.`;
+  $("#hi-edits").innerHTML="";$("#hi-review").style.display="none";
+  toast("Written into your doc. Check it, then turn it in yourself.");
+};
+$("#hi-open").onclick=()=>S.current&&S.current.classroom&&api().cr_show(S.current.classroom.href);
+
+$("#imp-open").onclick=()=>CR.imported&&api().cr_show(CR.imported.href);
+$("#imp-clear").onclick=()=>{CR.imported=null;$("#imported").classList.remove("on")};
+
+/* ================= Liquid glass touches ================= */
+// appearance: light / dark / follow Windows (remembered on this PC)
+const MQ=matchMedia("(prefers-color-scheme: dark)");
+function getMode(){try{return localStorage.getItem("folio-mode")||"auto"}catch(e){return "auto"}}
+function applyMode(m){
+  try{localStorage.setItem("folio-mode",m)}catch(e){}
+  document.documentElement.dataset.mode=m==="auto"?(MQ.matches?"dark":"light"):m;
+  $$("#mode button").forEach(b=>b.classList.toggle("on",b.dataset.m===m));
+}
+$$("#mode button").forEach(b=>b.onclick=()=>applyMode(b.dataset.m));
+MQ.addEventListener("change",()=>getMode()==="auto"&&applyMode("auto"));
+applyMode(getMode());
+
+// sidebar: a glass bubble that slides to the active item
+function moveGlow(){const on=$(".nav button.on"),g=$(".nav-glow");if(!g)return;if(!on){g.style.opacity=0;return}
+  g.style.transform=`translateY(${on.offsetTop}px)`;g.style.height=on.offsetHeight+"px";g.style.opacity=1}
+const _show=show; show=function(v){_show(v);moveGlow()};
+addEventListener("resize",moveGlow); setTimeout(moveGlow,50);
+
+// cards catch a soft light where the cursor is
+document.addEventListener("pointermove",e=>{const c=e.target.closest&&e.target.closest(".card");if(!c)return;
+  const r=c.getBoundingClientRect();c.style.setProperty("--mx",(e.clientX-r.left)+"px");c.style.setProperty("--my",(e.clientY-r.top)+"px")},{passive:true});
+
+// Ctrl+K command palette
+const PAL={items:[],sel:0,projects:null};
+function palCommands(){
+  const go=(v,extra)=>()=>{show(v);extra&&extra()};
+  return [
+    {i:"＋",t:"New project",k:"Start",run:go("new")},
+    {i:"C",t:"Classroom: load my assignments",k:"Classroom",run:go("classroom",()=>$("#cr-load").click())},
+    {i:"↗",t:"Open Classroom window",k:"Classroom",run:()=>api().cr_open()},
+    {i:"▤",t:"Library",k:"Projects",run:go("library")},
+    {i:"△",t:"Google Drive",k:"Drive",run:go("drive")},
+    {i:"⚙",t:"Settings",k:"Settings",run:go("settings")},
+    {i:"☀",t:"Appearance: Light",k:"Theme",run:()=>applyMode("light")},
+    {i:"☾",t:"Appearance: Dark",k:"Theme",run:()=>applyMode("dark")},
+    {i:"◐",t:"Appearance: Match Windows",k:"Theme",run:()=>applyMode("auto")},
+    ...(PAL.projects||[]).map(p=>({i:"◆",t:p.title,k:p.date,run:async()=>{const r=await api().load_project(p.folder);if(r.error)return toast(r.error,true);showResult(r)}}))
+  ];
+}
+function palRender(){
+  const q=$("#pal-q").value.trim().toLowerCase();
+  PAL.items=palCommands().filter(c=>!(window.FOLIO_WEB&&/Classroom|Google Drive/.test(c.t))).filter(c=>!q||(c.t+" "+c.k).toLowerCase().includes(q)).slice(0,30);
+  PAL.sel=Math.min(PAL.sel,Math.max(0,PAL.items.length-1));
+  $("#pal-list").innerHTML=PAL.items.length?PAL.items.map((c,i)=>`<div class="pal-item${i===PAL.sel?" sel":""}" data-i="${i}"><span class="pi">${c.i}</span>${esc(c.t)}<small>${esc(c.k||"")}</small></div>`).join("")
+    :'<div class="pal-item">No matches</div>';
+  $$("#pal-list .pal-item[data-i]").forEach(el=>{el.onclick=()=>palRun(+el.dataset.i);el.onmousemove=()=>{if(PAL.sel!==+el.dataset.i){PAL.sel=+el.dataset.i;palRender()}}});
+  const s=$("#pal-list .sel");s&&s.scrollIntoView({block:"nearest"});
+}
+async function palOpen(){$("#palette").classList.add("on");$("#pal-q").value="";PAL.sel=0;palRender();$("#pal-q").focus();
+  try{PAL.projects=await api().list_projects();palRender()}catch(e){}}
+function palClose(){$("#palette").classList.remove("on")}
+function palRun(i){const c=PAL.items[i];palClose();c&&c.run()}
+$("#pal-open").onclick=palOpen;
+$("#palette").onclick=e=>{if(e.target.id==="palette")palClose()};
+$("#pal-q").oninput=()=>{PAL.sel=0;palRender()};
+document.addEventListener("keydown",e=>{
+  if(e.ctrlKey&&e.key.toLowerCase()==="k"){e.preventDefault();$("#palette").classList.contains("on")?palClose():palOpen();return}
+  if(!$("#palette").classList.contains("on"))return;
+  if(e.key==="Escape")palClose();
+  else if(e.key==="ArrowDown"){e.preventDefault();PAL.sel=Math.min(PAL.sel+1,PAL.items.length-1);palRender()}
+  else if(e.key==="ArrowUp"){e.preventDefault();PAL.sel=Math.max(PAL.sel-1,0);palRender()}
+  else if(e.key==="Enter"){e.preventDefault();palRun(PAL.sel)}
+});
+
+window.addEventListener("pywebviewready",async()=>{applySettings(await api().get_settings());loadHome()});
+</script>
+</body>
+</html>
