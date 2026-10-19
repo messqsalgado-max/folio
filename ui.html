@@ -535,9 +535,12 @@ details{border-radius:14px;background:var(--glass-3);border:1px dashed var(--lin
 
 /* ============ Web + iPhone (the web app adds class="web" to the body tag) ============ */
 /* things that only work in the Windows app */
-.web .nav button[data-v=drive],.web .nav button[data-v=classroom],.web .field:has(> #dest),.web #target,
-.web #r-folder,.web #handin,.web .field:has(#s-dir),.web .field:has(#s-remind),.web #hm-refresh,
-.web .hm-tile:not(.ok),.web .card:has(> .cb#hm-next),.web #imported{display:none!important}
+.web .nav button[data-v=drive],.web .field:has(> #dest),.web #target,
+.web #r-folder,.web .field:has(#s-dir),.web .field:has(#s-remind),
+.web .hm-tile:not(.ok){display:none!important}
+/* Classroom needs the server's own browser (body class "cr" when the server has one) */
+.web:not(.cr) .nav button[data-v=classroom],.web:not(.cr) #handin,.web:not(.cr) #hm-refresh,
+.web:not(.cr) .card:has(> .cb#hm-next),.web:not(.cr) #imported{display:none!important}
 .web .hm-tiles{grid-template-columns:1fr}
 .web-only{display:none}.web .web-only{display:revert}
 
@@ -1675,7 +1678,7 @@ function palCommands(){
 }
 function palRender(){
   const q=$("#pal-q").value.trim().toLowerCase();
-  PAL.items=palCommands().filter(c=>!(window.FOLIO_WEB&&/Classroom|Google Drive/.test(c.t))).filter(c=>!q||(c.t+" "+c.k).toLowerCase().includes(q)).slice(0,30);
+  PAL.items=palCommands().filter(c=>!(window.FOLIO_WEB&&(/Google Drive/.test(c.t)||(!window.FOLIO_CR&&/Classroom/.test(c.t))))).filter(c=>!q||(c.t+" "+c.k).toLowerCase().includes(q)).slice(0,30);
   PAL.sel=Math.min(PAL.sel,Math.max(0,PAL.items.length-1));
   $("#pal-list").innerHTML=PAL.items.length?PAL.items.map((c,i)=>`<div class="pal-item${i===PAL.sel?" sel":""}" data-i="${i}"><span class="pi">${c.i}</span>${esc(c.t)}<small>${esc(c.k||"")}</small></div>`).join("")
     :'<div class="pal-item">No matches</div>';

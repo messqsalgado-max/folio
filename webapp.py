@@ -9,6 +9,8 @@ Settings come from environment variables (secrets on the host):
   GEMINI_API_KEY     and/or ANTHROPIC_API_KEY: the AI key(s), kept on the server
   SECRET_KEY         optional: signs the login cookie (random each start if unset)
   FOLIO_DATA         optional: where projects are stored (default ./web_data)
+  FOLIO_CLASSROOM    1 = run a real Chrome on the server for the Classroom features (needs Playwright;
+                     the student signs in through the live view). Set up for GitHub Codespaces in .devcontainer
 """
 
 import hmac
@@ -46,6 +48,7 @@ import Folio  # noqa: E402
 OUT = os.path.join(DATA, "Folio Projects")
 Folio.DEFAULT_OUT = OUT
 SERVER_KEY = "(saved on the server)"
+CLOUD_CR = os.environ.get("FOLIO_CLASSROOM") == "1"
 _load = Folio.load_settings
 
 
@@ -87,6 +90,9 @@ class WebApi(Folio.Api):
     def __init__(self):
         super().__init__()
         self._window = EVENTS
+        if CLOUD_CR:
+            import cloudbrowser
+            self._classroom = cloudbrowser.CloudClassroom(on_closed=lambda: self._emit("cr_closed"))
 
     def get_settings(self):
         s = load_settings()
@@ -94,6 +100,7 @@ class WebApi(Folio.Api):
             if os.environ.get(env):
                 s[k] = SERVER_KEY
         s["web"] = True
+        s["cloud_cr"] = CLOUD_CR
         return s
 
     def save_settings(self, data):
@@ -109,7 +116,8 @@ ALLOWED = {
     "get_settings", "save_settings", "generate", "cancel", "revise", "undo", "restyle", "recheck",
     "check_sources", "list_projects", "load_project", "thumbs", "edit_slide", "photo_options", "set_photo",
     "quiz", "home", "personal_qs", "open_url",
-}
+} | ({"cr_open", "cr_status", "cr_list", "cr_import", "cr_link", "cr_docs", "cr_plan", "cr_write",
+      "cr_add_slides", "cr_show"} if CLOUD_CR else set())
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
@@ -194,11 +202,12 @@ def _page():
             '<meta name="apple-mobile-web-app-title" content="Folio"><meta name="theme-color" content="#0A0C14">'
             '<link rel="apple-touch-icon" href="/icon-180.png"><link rel="manifest" href="/manifest.json">')
     html = html.replace("<head>", "<head>" + head, 1)
-    html = re.sub(r"(?m)^<body>", '<body class="web">', html, count=1)  # the real tag, not a mention in a comment
+    html = re.sub(r"(?m)^<body>", '<body class="web%s">' % (" cr" if CLOUD_CR else ""), html, count=1)  # the real tag, not a mention in a comment
     with open(_asset("bridge.js"), encoding="utf-8") as f:
         bridge = f.read()
     i = html.rindex("<script>")  # the bridge must exist before Folio's own script runs
-    return html[:i] + "<script>" + bridge + "</script>\n" + html[i:]
+    flags = "window.FOLIO_CR=%s;" % ("true" if CLOUD_CR else "false")
+    return html[:i] + "<script>" + flags + bridge + "</script>\n" + html[i:]
 
 
 @app.route("/")
@@ -252,6 +261,51 @@ def import_file():
             os.remove(tmp)
         except OSError:
             pass
+
+
+# ---------------------------------------------------------------- the live view of the server's browser
+def _browser():
+    b = getattr(API._classroom, "browser", None)
+    if not CLOUD_CR or b is None:
+        abort(404)
+    return b
+
+
+@app.get("/api/cr/frame")
+def cr_frame():
+    b = _browser()
+    if not b.is_running():
+        abort(409)
+    r = Response(b.frame(), mimetype="image/jpeg")
+    r.headers["Cache-Control"] = "no-store"
+    return r
+
+
+@app.get("/api/cr/info")
+def cr_info():
+    b = _browser()
+    return jsonify(b.info() if b.is_running() else {"url": "", "title": "", "off": True})
+
+
+@app.post("/api/cr/input")
+def cr_input():
+    b = _browser()
+    d = request.get_json(silent=True) or {}
+    try:
+        kind = d.get("kind")
+        if kind == "tap":
+            b.tap(float(d["x"]), float(d["y"]))
+        elif kind == "scroll":
+            b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]))
+        elif kind == "type":
+            b.type(str(d.get("text", ""))[:2000])
+        elif kind == "key":
+            b.key(str(d.get("key", "")))
+        elif kind == "nav":
+            b.nav(str(d.get("what", "")))
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)[:200]})
 
 
 @app.get("/manifest.json")

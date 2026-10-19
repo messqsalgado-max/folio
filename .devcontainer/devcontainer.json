@@ -1,0 +1,15 @@
+{
+  "name": "Folio",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "hostRequirements": {"cpus": 2},
+  "containerEnv": {
+    "FOLIO_CLASSROOM": "1",
+    "FOLIO_DATA": "/workspaces/folio-data",
+    "FOLIO_BROWSER_CHANNEL": "chrome",
+    "DISPLAY": ":99"
+  },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postStartCommand": "bash .devcontainer/start.sh",
+  "forwardPorts": [7860],
+  "portsAttributes": {"7860": {"label": "Folio", "onAutoForward": "openBrowser"}}
+}

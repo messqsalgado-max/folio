@@ -72,7 +72,8 @@ JS_DETAILS = r"""
   const pcH = [...document.querySelectorAll('h2')].find(h => vis(h) && /private comment/i.test(h.innerText));
   let comments = "";
   if (pcH) comments = pcH.parentElement.parentElement.innerText
-      .replace(/^.*private comments?\n/i, '').split(/\nAdd private comment/)[0].trim();
+      .replace(/^.*private comments?\n/i, '').split(/\nAdd private comment/)[0]
+      .split('\n').filter(l => !/^Add (private )?comment\b/i.test(l.trim())).join('\n').trim();  // button labels, not comments
   return JSON.stringify({url: location.href, ready: true, title: h1.innerText.trim(), head, atts, comments});
 })()
 """
@@ -137,6 +138,8 @@ def _find_text(line):
 
 def _cdp(win, method, params=None, timeout=30):
     """Send a DevTools command to a pywebview window through WebView2 itself (no debug port)."""
+    if hasattr(win, "cdp"):  # the web app's server-side Chrome (cloudbrowser.py)
+        return win.cdp(method, params)
     from threading import Semaphore
     from System import Action, Func, Object, String
     from System.Threading.Tasks import Task

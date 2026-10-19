@@ -42,14 +42,102 @@
     import_file: () => pickFile(),
     pick_folder: () => Promise.resolve(null),
     g_status: () => Promise.resolve({has_client: false, connected: false, manual: false}),
-    cr_status: () => Promise.resolve({open: false}),
   };
+  if (!window.FOLIO_CR) special.cr_status = () => Promise.resolve({open: false});
+  else {  // the server's own browser stands in for the Classroom window: show it live
+    special.cr_open = () => post("cr_open", []).then(r => { Live.open(); return r; });
+    special.cr_show = href => post("cr_show", [href]).then(r => { Live.open(); return r; });
+  }
   window.pywebview = {api: new Proxy({}, {get: (_, name) => (...args) => {
     if (special[name]) return special[name](...args);
     const p = post(name, args);
     if (name === "generate" || name === "revise") p.then(() => poll());
     return p;
   }})};
+
+  /* ---- Live view of the server's browser: you see it, tap it and type into it; Folio drives it too ---- */
+  const Live = {
+    el: null, on: false,
+    build() {
+      const css = document.createElement("style");
+      css.textContent = `
+#live{position:fixed;inset:0;z-index:9999;display:none;flex-direction:column;background:rgba(6,8,14,.96);
+  -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#EEF0F8;font:14px -apple-system,system-ui,sans-serif;
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+#live.on{display:flex}
+#live .bar{display:flex;gap:6px;align-items:center;padding:8px 10px}
+#live .bar button,#live .keys button{all:unset;cursor:pointer;padding:8px 12px;border-radius:12px;background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.12);font-weight:600;font-size:14px;text-align:center}
+#live .bar .t{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;color:#9AA0B8}
+#live .scr{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;align-items:flex-start;justify-content:center}
+#live img{width:100%;max-width:min(100%,1100px);height:auto;touch-action:pan-x pinch-zoom;user-select:none;-webkit-user-select:none;display:block}
+#live img.z{width:250%;max-width:none}#live .scr.z{justify-content:flex-start}
+#live .keys{display:flex;gap:6px;padding:8px 10px;align-items:center}
+#live .keys input{flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.15);
+  background:rgba(10,12,22,.6);color:#EEF0F8;font-size:16px}
+#live .keys input.hide{-webkit-text-security:disc}
+#live .hint{padding:0 12px 6px;font-size:12px;color:#9AA0B8}`;
+      document.head.appendChild(css);
+      const d = document.createElement("div");
+      d.id = "live";
+      d.innerHTML = `<div class="bar"><button data-a="close">Done</button><button data-a="back">‹</button>
+<button data-a="reload">⟳</button><button data-a="home">⌂</button><span class="t"></span>
+<button data-a="zoom">Zoom</button><button data-a="up">▲</button><button data-a="down">▼</button></div>
+<div class="hint">Classroom on Folio's server. Tap to click, swipe to scroll, type below. Sign in yourself if Google asks.</div>
+<div class="scr"><img alt="Classroom"></div>
+<div class="keys"><input placeholder="Type here, then Send" autocapitalize="off" autocorrect="off" spellcheck="false">
+<button data-a="send">Send</button><button data-a="Backspace">⌫</button><button data-a="Enter">⏎</button>
+<button data-a="Tab">⇥</button><button data-a="hide">Hide</button></div>`;
+      document.body.appendChild(d);
+      this.el = d;
+      const img = d.querySelector("img"), inp = d.querySelector("input"), title = d.querySelector(".t");
+      const send = (body) => fetch("/api/cr/input", {method: "POST", credentials: "same-origin",
+        headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)}).then(() => this.kick());
+      const at = (cx, cy) => { const r = img.getBoundingClientRect(), k = img.naturalWidth / r.width;
+        return {x: Math.round((cx - r.left) * k), y: Math.round((cy - r.top) * k)}; };
+      let t0 = null;
+      img.addEventListener("touchstart", e => { const p = e.touches[0]; t0 = {x: p.clientX, y: p.clientY, n: e.touches.length}; }, {passive: true});
+      img.addEventListener("touchend", e => {
+        if (!t0 || t0.n > 1) return; const p = e.changedTouches[0], dy = p.clientY - t0.y, dx = p.clientX - t0.x;
+        const k = img.naturalWidth / img.getBoundingClientRect().width;
+        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) send({kind: "scroll", ...at(t0.x, t0.y), dy: Math.round(-dy * k * 1.6)});
+        else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) { e.preventDefault(); send({kind: "tap", ...at(p.clientX, p.clientY)}); }
+        t0 = null;
+      });
+      img.addEventListener("click", e => { if (!("ontouchstart" in window)) send({kind: "tap", ...at(e.clientX, e.clientY)}); });
+      img.addEventListener("wheel", e => { e.preventDefault(); send({kind: "scroll", ...at(e.clientX, e.clientY), dy: e.deltaY}); }, {passive: false});
+      inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); typeOut(true); } });
+      const typeOut = (enter) => { const v = inp.value; inp.value = "";
+        (v ? send({kind: "type", text: v}) : Promise.resolve()).then(() => enter && send({kind: "key", key: "Enter"})); };
+      d.querySelector(".bar").onclick = d.querySelector(".keys").onclick = e => {
+        const a = e.target.dataset && e.target.dataset.a; if (!a) return;
+        if (a === "close") return this.close();
+        if (a === "send") return typeOut(false);
+        if (a === "zoom") { img.classList.toggle("z"); img.parentNode.classList.toggle("z"); return; }
+        if (a === "hide") { inp.classList.toggle("hide"); e.target.textContent = inp.classList.contains("hide") ? "Show" : "Hide"; return; }
+        if (a === "up" || a === "down") return send({kind: "scroll", x: 550, y: 400, dy: a === "up" ? -500 : 500});
+        if (["back", "reload", "home"].includes(a)) return send({kind: "nav", what: a});
+        if (["Backspace", "Enter", "Tab"].includes(a)) { if (inp.value) typeOut(false); return send({kind: "key", key: a}); }
+      };
+      this.img = img; this.title = title;
+    },
+    open() { if (!this.el) this.build(); this.el.classList.add("on"); if (!this.on) { this.on = true; this.loop(); } },
+    close() { this.on = false; this.el && this.el.classList.remove("on"); },
+    kick() { this.fast = 4; },
+    async loop() {
+      let n = 0;
+      while (this.on) {
+        try {
+          const b = await fetch("/api/cr/frame?t=" + Date.now(), {credentials: "same-origin"}).then(r => r.ok ? r.blob() : null);
+          if (b) { const u = URL.createObjectURL(b), old = this.img.src; this.img.src = u; if (old.startsWith("blob:")) URL.revokeObjectURL(old); }
+          if (n++ % 5 === 0) fetch("/api/cr/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
+            this.title.textContent = i.title || i.url || ""; }).catch(() => {});
+        } catch (e) {}
+        await new Promise(r => setTimeout(r, this.fast > 0 ? (this.fast--, 250) : 700));
+      }
+    },
+  };
+  window.FolioLive = Live;
 
   document.addEventListener("DOMContentLoaded", async () => {
     // skip events from before this page was opened, but pick up a project that's still being made
