@@ -220,10 +220,16 @@ def call(name):
     if name not in ALLOWED:
         return jsonify({"error": "That only works in the Windows app."})
     args = request.get_json(silent=True) or []
+    cr = name.startswith("cr_")
+    if cr:
+        _cr_touch(+1)
     try:
         return jsonify(getattr(API, name)(*args))
     except Exception as e:
         return jsonify({"error": str(e)[:300]})
+    finally:
+        if cr:
+            _cr_touch(-1)
 
 
 @app.get("/api/events")
@@ -264,11 +270,44 @@ def import_file():
 
 
 # ---------------------------------------------------------------- the live view of the server's browser
+# Chrome is heavy (Render's free box has 512 MB), so it runs only while Classroom is in use and is shut
+# down once the student has been away from it for a while, giving the memory back to slide-making.
+CR_IDLE = int(os.environ.get("FOLIO_CR_IDLE") or 360)
+_cr_lock = threading.Lock()
+_cr_state = {"last": 0.0, "inflight": 0}
+
+
+def _cr_touch(delta=0):
+    with _cr_lock:
+        _cr_state["inflight"] += delta
+        _cr_state["last"] = time.time()
+
+
+def _cr_watchdog():
+    while True:
+        time.sleep(30)
+        try:
+            b = getattr(API._classroom, "browser", None)
+            if not (b and b.is_running()):
+                continue
+            with _cr_lock:
+                idle = _cr_state["inflight"] <= 0 and (time.time() - _cr_state["last"]) > CR_IDLE
+            if idle and not API.busy:
+                b.stop()
+        except Exception:
+            pass
+
+
 def _browser():
     b = getattr(API._classroom, "browser", None)
     if not CLOUD_CR or b is None:
         abort(404)
+    _cr_touch()
     return b
+
+
+if CLOUD_CR:
+    threading.Thread(target=_cr_watchdog, daemon=True).start()
 
 
 @app.get("/api/cr/frame")

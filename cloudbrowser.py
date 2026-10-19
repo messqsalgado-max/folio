@@ -24,6 +24,13 @@ KEY_RE = re.compile(r"^((Control|Alt|Shift)\+)*(Enter|Backspace|Tab|Escape|Delet
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
       "Chrome/141.0.0.0 Safari/537.36")
 
+# On a small box (Render's free 512 MB) Chrome has to run headless and sparing with memory, and only
+# while the student is actually in Classroom (see the idle shutdown in webapp.py).
+LEAN_ARGS = ["--disable-gpu", "--disable-extensions", "--disable-background-networking",
+             "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows",
+             "--disable-renderer-backgrounding", "--disable-features=site-per-process,TranslateUI,BackForwardCache",
+             "--renderer-process-limit=1", "--js-flags=--max-old-space-size=256", "--window-size=1100,820"]
+
 
 class _Events:
     """Stands in for pywebview's window.events (closed += handler; loaded.wait())."""
@@ -44,6 +51,7 @@ class Browser:
         self.jobs = queue.Queue()
         self.thread = None
         self.ctx = None
+        self.pw = None
         self.pages = {}
         self.sessions = {}
         self.lock = threading.Lock()
@@ -52,19 +60,27 @@ class Browser:
     def _loop(self, ready):
         from playwright.sync_api import sync_playwright
         try:
-            pw = sync_playwright().start()
+            self.pw = sync_playwright().start()
+            # headless when there's no screen to draw on (a server); a real window elsewhere, which Google trusts more
+            headless = os.environ.get("FOLIO_HEADLESS") == "1" or (
+                sys.platform.startswith("linux") and not os.environ.get("DISPLAY"))
+            args = ["--disable-blink-features=AutomationControlled", "--no-first-run",
+                    "--no-default-browser-check", "--disable-dev-shm-usage"]
+            if headless:
+                args += LEAN_ARGS
+                if os.environ.get("FOLIO_SINGLE_PROCESS") == "1":  # squeezes memory harder; can be less stable
+                    args += ["--single-process", "--no-zygote"]
             kw = dict(user_data_dir=PROFILE, viewport=VIEW, user_agent=UA, locale="en-US",
-                      ignore_default_args=["--enable-automation"],
-                      args=["--disable-blink-features=AutomationControlled", "--no-first-run",
-                            "--no-default-browser-check", "--disable-dev-shm-usage"])
-            # a visible browser (on a virtual screen on Linux) looks like a person's to Google; headless doesn't
-            kw["headless"] = sys.platform.startswith("linux") and not os.environ.get("DISPLAY")
+                      headless=headless, ignore_default_args=["--enable-automation"], args=args)
             channel = os.environ.get("FOLIO_BROWSER_CHANNEL") or ("msedge" if os.name == "nt" else "chrome")
+            if channel == "none":  # use Playwright's bundled Chromium (what the Docker image installs)
+                channel = None
             try:
-                self.ctx = pw.chromium.launch_persistent_context(channel=channel, **kw)
+                self.ctx = self.pw.chromium.launch_persistent_context(
+                    **({"channel": channel} if channel else {}), **kw)
             except Exception as first:
                 try:
-                    self.ctx = pw.chromium.launch_persistent_context(**kw)  # Playwright's own Chromium
+                    self.ctx = self.pw.chromium.launch_persistent_context(**kw)  # Playwright's own Chromium
                 except Exception:
                     raise first
             if os.name == "nt":  # testing on the PC: park the window off screen (minimized windows stop drawing)
@@ -81,25 +97,46 @@ class Browser:
             ready.set()
             return
         while True:
-            fn, box, done = self.jobs.get()
+            job = self.jobs.get()
+            if job is None:  # shutdown: free the memory for everything else Folio does
+                break
+            fn, box, done = job
             try:
                 box["r"] = fn()
             except Exception as e:
                 box["e"] = e
             done.set()
+        for closer in (lambda: self.ctx.close(), lambda: self.pw.stop()):
+            try:
+                closer()
+            except Exception:
+                pass
+        self.ctx = None
 
     def start(self):
         with self.lock:
             if self.thread and self.thread.is_alive() and self.ctx:
                 return
             os.makedirs(PROFILE, exist_ok=True)
-            self.error, ready = None, threading.Event()
+            self.error, self.pages, self.sessions, ready = None, {}, {}, threading.Event()
             self.thread = threading.Thread(target=self._loop, args=(ready,), daemon=True)
             self.thread.start()
             ready.wait(90)
             if self.error or not self.ctx:
                 self.thread = None
                 raise RuntimeError(f"Couldn't start the browser: {self.error or 'timed out'}")
+
+    def stop(self):
+        """Close Chrome and free its memory. The next call to start() brings it back."""
+        with self.lock:
+            t = self.thread
+            if not (t and t.is_alive()):
+                self.ctx, self.thread = None, None
+                return
+            self.jobs.put(None)
+        t.join(timeout=25)
+        with self.lock:
+            self.thread, self.ctx, self.pages, self.sessions = None, None, {}, {}
 
     def run(self, fn, timeout=60):
         self.start()
