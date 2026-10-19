@@ -8,6 +8,7 @@ Playwright's sync API must stay on one thread, so every browser call goes throug
 
 import os
 import queue
+import re
 import sys
 import threading
 import time
@@ -18,6 +19,8 @@ PROFILE = os.environ.get("FOLIO_BROWSER_PROFILE") or os.path.join(
     os.environ.get("FOLIO_DATA") or os.path.dirname(os.path.abspath(__file__)), "browser")
 VIEW = {"width": 1100, "height": 820}
 SIGNIN_VIEW = {"width": 430, "height": 760}
+KEY_RE = re.compile(r"^((Control|Alt|Shift)\+)*(Enter|Backspace|Tab|Escape|Delete|Home|End|PageUp|PageDown|"
+                    r"Arrow(Up|Down|Left|Right)|[a-z0-9])$")
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
       "Chrome/141.0.0.0 Safari/537.36")
 
@@ -159,7 +162,8 @@ class Browser:
         self.run(lambda: self._cdp("main", "Input.insertText", {"text": text}))
 
     def key(self, key):
-        if key in ("Enter", "Backspace", "Tab", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Delete"):
+        """One key or shortcut from the live view, e.g. "Enter", "Shift+Tab", "Control+a"."""
+        if KEY_RE.match(key or ""):
             self.run(lambda: self._page("main").keyboard.press(key))
 
     def nav(self, what):
