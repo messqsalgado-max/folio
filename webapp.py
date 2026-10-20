@@ -595,14 +595,16 @@ if sock is not None:
 
         threading.Thread(target=reader, daemon=True).start()
         last, last_url, last_title, last_info = None, "", "", 0.0
+        frame_interval = 1 / 40  # leave a little headroom for input and slower tunnel connections
         delay = 0.01
         try:
             while not stop.is_set():
+                frame_started = time.perf_counter()
                 img = b.shot(quality=68)
                 if img and img != last:
                     last = img
                     ws.send(img)
-                    delay = 0.01
+                    delay = max(0.001, frame_interval - (time.perf_counter() - frame_started))
                 else:
                     delay = min(delay * 1.5, 0.12)
                 if time.time() - last_info > 1:
@@ -645,14 +647,16 @@ if sock is not None:
         threading.Thread(target=reader, daemon=True).start()
 
         last, last_url, last_info = None, "", 0.0
+        frame_interval = 1 / 40
         delay = 0.015
         while not stop.is_set():
             try:
+                frame_started = time.perf_counter()
                 img = b.shot()  # launches only the personal-browser process
                 if img and img != last:
                     last = img
                     ws.send(img)
-                    delay = 0.015
+                    delay = max(0.001, frame_interval - (time.perf_counter() - frame_started))
                 else:
                     delay = min(delay * 1.5, 0.12)
                 if time.time() - last_info > 1:  # keep the address bar current

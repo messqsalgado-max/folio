@@ -70,6 +70,10 @@ class Browser:
                     "--no-default-browser-check", "--disable-dev-shm-usage"]
             if headless:
                 args += LEAN_ARGS
+                # Windows PCs can use the GPU even when Chrome has no visible window. This makes
+                # the live browser view much smoother; keep the lean software path on small servers.
+                if os.name == "nt" and os.environ.get("FOLIO_HEADLESS_GPU", "1") != "0":
+                    args = [arg for arg in args if arg != "--disable-gpu"]
                 if os.environ.get("FOLIO_SINGLE_PROCESS") == "1":  # squeezes memory harder; can be less stable
                     args += ["--single-process", "--no-zygote"]
             kw = dict(user_data_dir=self.profile, viewport=VIEW, user_agent=UA, locale="en-US",
