@@ -275,6 +275,36 @@ def _domain_ready():
     return os.path.isfile(os.path.join(CF_HOME, "cert.pem"))
 
 
+def _ensure_tunnel_credentials(host):
+    """Restore the local runner credential for an existing tunnel when only cert.pem remains."""
+    result = _cf("tunnel", "list", "--output", "json")
+    if result.returncode:
+        say("Couldn't check the Cloudflare tunnel for %s." % host)
+        say((result.stderr or result.stdout or "Cloudflare returned an error.").strip()[:300])
+        return False
+    try:
+        tunnels = json.loads(result.stdout or "[]")
+        tunnel = next(t for t in tunnels if t.get("name") == TUNNEL_NAME and not t.get("deleted_at", "").startswith("20"))
+    except (ValueError, TypeError, StopIteration):
+        say("Couldn't find the existing '%s' tunnel in your Cloudflare account." % TUNNEL_NAME)
+        say("Run setup-domain.bat to reconnect the domain, then start Folio again.")
+        return False
+
+    tunnel_id = tunnel.get("id", "")
+    credential = os.path.join(CF_HOME, tunnel_id + ".json")
+    if os.path.isfile(credential) and os.path.getsize(credential) > 0:
+        return True
+
+    say("Restoring the missing local credentials for the existing '%s' tunnel…" % TUNNEL_NAME)
+    result = _cf("tunnel", "token", "--cred-file", credential, tunnel_id)
+    if result.returncode or not os.path.isfile(credential) or os.path.getsize(credential) == 0:
+        say("Couldn't restore the tunnel credentials.")
+        say((result.stderr or result.stdout or "Cloudflare returned no credentials.").strip()[:300])
+        return False
+    say("Tunnel credentials restored.")
+    return True
+
+
 def _configure_domain(host):
     """Interactive Cloudflare setup for `host`: sign in, make the tunnel, point the domain at it.
     Returns True once it's ready. Safe to call from start-folio.bat the first time."""
@@ -359,6 +389,11 @@ def main():
     os.environ.update(env)
     os.environ.update(FOLIO_CLASSROOM="1", HOST="127.0.0.1", PORT=PORT,
                       FOLIO_DATA=os.path.join(HERE, "folio-data"))
+    host = os.environ.get("FOLIO_TUNNEL_HOSTNAME", "").strip().lower()
+    if host and _domain_ready() and not _ensure_tunnel_credentials(host):
+        say("Folio will not start its public tunnel until the credentials are restored.")
+        input("Press Enter to close.")
+        return
 
     web = subprocess.Popen([sys.executable, os.path.join(HERE, "webapp.py")], cwd=HERE)
     say("Starting Folio…")
@@ -368,7 +403,6 @@ def main():
         input("Press Enter to close.")
         return
 
-    host = os.environ.get("FOLIO_TUNNEL_HOSTNAME", "").strip().lower()
     if host and not _domain_ready():  # domain set but not connected yet → do the one-time setup now
         say("First time with your domain '%s' — let's connect it to Cloudflare (one time)." % host)
         _configure_domain(host)
