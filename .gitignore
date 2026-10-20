@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.version
+folio.env
+folio-data/
+cloudflared.exe
+.chromium-ok
