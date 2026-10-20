@@ -277,6 +277,8 @@ details textarea{margin-top:10px;min-height:110px;background:var(--card)}
   box-shadow:0 0 0 1px rgba(0,0,0,.08),0 8px 18px -10px rgba(0,0,0,.4);transition:transform .25s,box-shadow .25s}
 .sl-thumb:hover{transform:translateY(-3px)}
 .sl-thumb.on{box-shadow:0 0 0 2px var(--accent),0 12px 24px -10px var(--accent)}
+@keyframes slspeak{0%,100%{box-shadow:0 0 0 2px var(--accent),0 8px 20px -10px var(--accent)}50%{box-shadow:0 0 0 3px var(--accent),0 12px 28px -8px var(--accent)}}
+.sl-thumb.speaking{animation:slspeak 1.1s ease-in-out infinite}
 .sl-img{position:absolute;right:0;top:0;bottom:0;width:42%;background-size:cover;background-position:center;display:none}
 .sl-img.has{display:block}
 .sl-txt{position:absolute;left:10px;top:10px;right:10px;font-size:9px;line-height:1.25;display:flex;flex-direction:column;gap:2px}
@@ -815,7 +817,7 @@ main{scroll-behavior:smooth}
       </div>
       <div class="files" id="r-files"></div>
       <div class="card slides-card" id="r-slides-card">
-        <div class="ch"><h3>Slides <i class="tip" data-t="Click a slide to change its words or swap its photo. Folio rebuilds your files right away; Undo last change (under Revise) goes back.">i</i></h3><small class="sub" id="sl-count" style="margin:0"></small></div>
+        <div class="ch"><h3>Slides <i class="tip" data-t="Click a slide to change its words or swap its photo. Folio rebuilds your files right away; Undo last change (under Revise) goes back.">i</i></h3><div style="display:flex;align-items:center;gap:10px"><small class="sub" id="sl-count" style="margin:0"></small><button class="btn" id="sl-listen" style="padding:6px 12px;font-size:12px" title="Read the slides aloud">Listen</button><button class="ghost" id="sl-stop" style="display:none" title="Stop reading">Stop</button></div></div>
         <div class="sl-strip" id="sl-strip"></div>
         <div class="sl-editor" id="sl-editor"></div>
       </div>
@@ -1180,7 +1182,7 @@ const api = () => window.pywebview.api;
 let S = {theme:"Midnight", count:10, settings:{}, current:null, timer:null, t0:0, searches:0};
 
 function toast(msg, err){const t=$("#toast");t.textContent=msg;t.className="toast on"+(err?" err":"");clearTimeout(t._h);t._h=setTimeout(()=>t.className="toast",3800)}
-function show(v){$$(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));$$(".nav button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+function show(v){if(typeof ttsStop==="function")ttsStop();$$(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));$$(".nav button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
   if(v==="library")loadLibrary(); if(v==="home")loadHome(); if(v==="drive")gRefresh();}
 function seg(id){const el=$(id);el.querySelectorAll("button").forEach(b=>b.onclick=()=>{el.querySelectorAll("button").forEach(x=>x.classList.remove("on"));b.classList.add("on");el.dispatchEvent(new Event("change"))});}
 function segVal(id){return $(id+" button.on").textContent}
@@ -1323,6 +1325,7 @@ window.Folio={event(e){
 /* results */
 const FILEMETA={pptx:["PowerPoint","Slideshow","#C4462C"],pdf:["PDF","One-pager","#D93B3B"],docx:["Word","One-pager (editable)","#2B5BD7"]};
 function showResult(p){
+  if(typeof ttsStop==="function")ttsStop();
   S.current=p; const spec=p.spec||{};
   $("#r-title").textContent=spec.title||"Project";
   $("#r-sub").textContent=[(spec.slides||[]).length?((spec.slides.length+1)+" slides"):"",(spec.sources||[]).length+" sources",
@@ -1515,6 +1518,49 @@ async function findPhotos(i){
     b.onclick=async()=>{box.innerHTML='<div class="hint">Adding photo…</div>';const r=await api().set_photo(S.current.folder,i,Object.assign({},o,{query:q}));
       if(r&&r.error){box.innerHTML="";return toast(r.error,true)}showResult(r);toast("Photo swapped")};box.appendChild(b)});
 }
+
+/* ================= Listen (read the slides aloud) ================= */
+const TTS={queue:[],idx:0,playing:false,paused:false};
+const TTS_SPK='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.6 6a8 8 0 0 1 0 12"/></svg>';
+const TTS_PAUSE='<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+const TTS_PLAY='<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M7 5v14l12-7z"/></svg>';
+function ttsOk(){return typeof window.speechSynthesis!=="undefined"&&typeof window.SpeechSynthesisUtterance!=="undefined"}
+function ttsBits(s){const b=[];const push=v=>{v=(v==null?"":""+v).trim();if(v)b.push(v)};
+  push(s.heading);push(s.subheading);
+  if(s.stat)push(s.stat+(s.stat_label?", "+s.stat_label:""));
+  if(s.quote)push('"'+s.quote+'"'+(s.attribution?", "+s.attribution:""));
+  (s.points||[]).forEach(push);
+  [s.left,s.right].forEach(c=>{if(c){push(c.heading);(c.points||[]).forEach(push)}});
+  (s.steps||[]).forEach(st=>push((st.label?st.label+": ":"")+(st.text||"")));
+  push(s.body);push(s.notes);
+  return b}
+function ttsBuild(){const spec=(S.current&&S.current.spec)||{},sl=spec.slides||[],q=[];
+  if(spec.title)q.push({i:-1,text:spec.title});
+  sl.forEach((s,i)=>ttsBits(s).forEach(t=>q.push({i,text:t})));
+  return q}
+function ttsHi(i){$$("#sl-strip .sl-thumb").forEach((t,j)=>t.classList.toggle("speaking",j===i));
+  if(i>=0){const el=$$("#sl-strip .sl-thumb")[i];if(el)el.scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"})}}
+function ttsStep(){if(!TTS.playing)return;
+  if(TTS.idx>=TTS.queue.length)return ttsStop();
+  const it=TTS.queue[TTS.idx];ttsHi(it.i);
+  const u=new SpeechSynthesisUtterance(it.text);u.rate=1;u.pitch=1;
+  u.onend=()=>{if(TTS.playing){TTS.idx++;ttsStep()}};
+  u.onerror=()=>{if(TTS.playing){TTS.idx++;ttsStep()}};
+  speechSynthesis.speak(u)}
+function ttsBtn(){const b=$("#sl-listen"),st=$("#sl-stop");if(!b)return;
+  if(!TTS.playing){b.innerHTML=TTS_SPK+"Listen";if(st)st.style.display="none"}
+  else if(TTS.paused){b.innerHTML=TTS_PLAY+"Resume";if(st)st.style.display=""}
+  else{b.innerHTML=TTS_PAUSE+"Pause";if(st)st.style.display=""}}
+function ttsStart(){if(!ttsOk())return toast("This browser can't read text aloud.",true);
+  TTS.queue=ttsBuild();if(!TTS.queue.length)return toast("No slide text to read yet.",true);
+  speechSynthesis.cancel();TTS.idx=0;TTS.playing=true;TTS.paused=false;ttsBtn();ttsStep()}
+function ttsStop(){TTS.playing=false;TTS.paused=false;if(ttsOk())speechSynthesis.cancel();ttsHi(-1);ttsBtn()}
+function ttsPause(){if(ttsOk())speechSynthesis.pause();TTS.paused=true;ttsBtn()}
+function ttsResume(){if(ttsOk())speechSynthesis.resume();TTS.paused=false;ttsBtn()}
+if(!ttsOk()){const _lb=$("#sl-listen");if(_lb)_lb.style.display="none"}
+else{$("#sl-listen").onclick=()=>{if(!TTS.playing)ttsStart();else if(TTS.paused)ttsResume();else ttsPause()};
+  $("#sl-stop").onclick=ttsStop;ttsBtn();
+  window.addEventListener("beforeunload",ttsStop);window.addEventListener("pagehide",ttsStop)}
 
 /* ================= Home dashboard ================= */
 async function loadHome(){
