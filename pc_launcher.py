@@ -157,7 +157,7 @@ def _saved_sha():
         return ""
 
 
-def update():
+def update(auto=False, sha=""):
     print()
     say("Checking for the latest Folio…")
     tmp = os.path.join(tempfile.gettempdir(), "folio-update.zip")
@@ -182,9 +182,10 @@ def update():
                     shutil.copyfileobj(src, out)
                 n += 1
         with open(VERSION_FILE, "w", encoding="utf-8") as f:
-            f.write(_latest_sha() or "updated")
+            f.write(sha or _latest_sha() or "updated")
         say("Updated %d files. Your password, projects and sign-in were kept." % n)
-        say("Now run start-folio.bat to launch the new version.")
+        if not auto:
+            say("Now run start-folio.bat to launch the new version.")
         return True
     except Exception as e:
         say("Update failed:", e)
@@ -381,9 +382,23 @@ def main():
         input("Press Enter to close.")
         return
 
-    latest = _latest_sha(3)  # quick, best-effort check
+    # Auto-update on launch: pull the latest from GitHub before starting, unless turned off
+    # (set FOLIO_NO_AUTOUPDATE=1 in folio.env to skip). Offline? the check just falls through.
+    skip_update = env.get("FOLIO_NO_AUTOUPDATE") == "1" or os.environ.get("FOLIO_JUST_UPDATED") == "1"
+    latest = "" if skip_update else _latest_sha(3)
     if latest and _saved_sha() and latest != _saved_sha():
-        say("💡 A newer version of Folio is available — close this and run update-folio.bat.")
+        say("A newer version of Folio is available — updating now…")
+        if update(auto=True, sha=latest):
+            say("Relaunching with the update…")
+            try:
+                sys.stdout.flush()
+                os.environ["FOLIO_JUST_UPDATED"] = "1"  # one-shot guard so the relaunch can't loop
+                os.execv(sys.executable, [sys.executable, os.path.join(HERE, "pc_launcher.py")] + sys.argv[1:])
+            except Exception as e:
+                say("Couldn't relaunch automatically (%s). Close this window and run start-folio.bat again." % e)
+                input("Press Enter to close.")
+                return
+        # update failed (e.g. network dropped) → carry on with the version already on disk
     elif latest and not _saved_sha():
         try:
             open(VERSION_FILE, "w", encoding="utf-8").write(latest)  # remember where we are now
