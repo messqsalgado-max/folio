@@ -187,11 +187,11 @@
         L.ws = ws;
         let got = false;
         ws.onmessage = (e) => {
-          if (typeof e.data === "string") { try { const i = JSON.parse(e.data); if (L.urlBar && document.activeElement !== L.urlBar) L.urlBar.value = i.url || ""; } catch (x) {} return; }
+          if (typeof e.data === "string") { try { const i = JSON.parse(e.data); if (L.title) L.title.textContent = i.title || i.url || ""; if (L.urlBar && document.activeElement !== L.urlBar) L.urlBar.value = i.url || ""; } catch (x) {} return; }
           got = true; const u = URL.createObjectURL(e.data), old = L.img.src; L.img.src = u; if ((old || "").startsWith("blob:")) URL.revokeObjectURL(old);
         };
-        ws.onclose = () => { if (L.useWs && !got) L.fallback(); };
-        ws.onerror = () => { if (L.useWs && !got) L.fallback(); };
+        ws.onclose = () => { if (L.useWs && L.on) L.fallback(); };
+        ws.onerror = () => { if (L.useWs && L.on) L.fallback(); };
         setTimeout(() => { if (L.on && L.useWs && !got) L.fallback(); }, 7000);  // no frames in time → polling
       } catch (e) { L.fallback(); }
     };
@@ -244,7 +244,7 @@
   }
 
   function makeClassroomSigninBrowser() {
-    return makeLivePanel({id: "live", base: "/api/cr", address: false,
+    return makeLivePanel({id: "live", base: "/api/cr", address: false, ws: true, wsPath: "/ws/cr",
       label: "Classroom sign-in browser. Sign in yourself if Google asks."});
   }
   function makePersonalBrowser() {

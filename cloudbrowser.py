@@ -19,7 +19,7 @@ import classroom
 PROFILE = os.environ.get("FOLIO_BROWSER_PROFILE") or os.path.join(
     os.environ.get("FOLIO_DATA") or os.path.dirname(os.path.abspath(__file__)), "browser")
 VIEW = {"width": 1100, "height": 820}
-SIGNIN_VIEW = {"width": 430, "height": 760}
+SIGNIN_VIEW = {"width": 720, "height": 1280}
 KEY_RE = re.compile(r"^((Control|Alt|Shift)\+)*(Enter|Backspace|Tab|Escape|Delete|Home|End|PageUp|PageDown|"
                     r"Arrow(Up|Down|Left|Right)|[a-z0-9])$")
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -172,14 +172,15 @@ class Browser:
         return Window(self, name)
 
     # ---------------------------------------------------------------- the live view (any tab)
-    def frame(self, tab="main"):
-        """JPEG of what `tab` shows right now. Google's sign-in gets a phone-sized page so it's readable
-        on the phone; everything else stays desktop-sized. A short per-tab cache means a burst of polls
-        reuses one screenshot instead of taxing the CPU each time."""
+    def frame(self, tab="main", quality=55, cache_ttl=None):
+        """JPEG of what `tab` shows right now. Google's sign-in gets a sharp portrait viewport; other
+        pages stay desktop-sized. Optional cache controls let live panels request fresh frames."""
         now = time.time()
         cache = self.__dict__.setdefault("_fcache", {})
-        hit = cache.get(tab)
-        if hit and now - hit[0] < getattr(self, "_frame_ttl", 0.1):
+        key = (tab, quality)
+        hit = cache.get(key)
+        ttl = getattr(self, "_frame_ttl", 0.1) if cache_ttl is None else max(0, cache_ttl)
+        if hit and now - hit[0] < ttl:
             return hit[1]
 
         def go():
@@ -187,19 +188,19 @@ class Browser:
             size = SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW
             if p.viewport_size != size:
                 p.set_viewport_size(size)
-            return p.screenshot(type="jpeg", quality=55)
+            return p.screenshot(type="jpeg", quality=quality)
         img = self.run(go, timeout=20)
-        cache[tab] = (time.time(), img)
+        cache[key] = (time.time(), img)
         return img
 
-    def shot(self, tab="main"):
+    def shot(self, tab="main", quality=50):
         """A fresh screenshot with no cache — for the continuous MJPEG stream (lower quality = faster)."""
         def go():
             p = self._page(tab)
             size = SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW
             if p.viewport_size != size:
                 p.set_viewport_size(size)
-            return p.screenshot(type="jpeg", quality=50)
+            return p.screenshot(type="jpeg", quality=quality)
         return self.run(go, timeout=20)
 
     def info(self, tab="main"):

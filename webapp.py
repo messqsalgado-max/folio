@@ -428,7 +428,7 @@ def cr_frame():
     b = _browser()
     if not b.is_running():
         abort(409)
-    img = b.frame()
+    img = b.frame(quality=68, cache_ttl=0)
     h = hashlib.md5(img).hexdigest()
     if h == api._cr["hash"] and request.args.get("f") != "1":
         return ("", 204)  # nothing changed since the last frame — save the bandwidth
@@ -449,20 +449,25 @@ def cr_input():
     b = _browser()
     d = request.get_json(silent=True) or {}
     try:
-        kind = d.get("kind")
-        if kind == "tap":
-            b.tap(float(d["x"]), float(d["y"]))
-        elif kind == "scroll":
-            b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]))
-        elif kind == "type":
-            b.type(str(d.get("text", ""))[:2000])
-        elif kind == "key":
-            b.key(str(d.get("key", "")))
-        elif kind == "nav":
-            b.nav(str(d.get("what", "")))
+        _cr_do(b, d)
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)[:200]})
+
+
+def _cr_do(b, d):
+    """Apply input from the Classroom live view to its isolated browser."""
+    kind = d.get("kind")
+    if kind == "tap":
+        b.tap(float(d["x"]), float(d["y"]))
+    elif kind == "scroll":
+        b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]))
+    elif kind == "type":
+        b.type(str(d.get("text", ""))[:2000])
+    elif kind == "key":
+        b.key(str(d.get("key", "")))
+    elif kind == "nav":
+        b.nav(str(d.get("what", "")))
 
 
 # ---------------------------------------------------------------- general browser panel (opt-in; tab "web")
@@ -564,6 +569,56 @@ def web_input():
 
 
 if sock is not None:
+    @sock.route("/ws/cr")
+    def ws_cr(ws):
+        # Stream Classroom sign-in frames over one persistent connection instead of HTTP polling.
+        if not CLOUD_CR or not session.get("ok") or not session.get("uid"):
+            return
+        _ctx.uid = session["uid"]
+        api = cur()
+        b = getattr(api._classroom, "browser", None)
+        if b is None:
+            return
+        stop = threading.Event()
+        _cr_touch(api, +1)
+
+        def reader():
+            while not stop.is_set():
+                try:
+                    msg = ws.receive()
+                    if msg is None:
+                        break
+                    _cr_do(b, json.loads(msg))
+                except Exception:
+                    break
+            stop.set()
+
+        threading.Thread(target=reader, daemon=True).start()
+        last, last_url, last_title, last_info = None, "", "", 0.0
+        delay = 0.01
+        try:
+            while not stop.is_set():
+                img = b.shot(quality=68)
+                if img and img != last:
+                    last = img
+                    ws.send(img)
+                    delay = 0.01
+                else:
+                    delay = min(delay * 1.5, 0.12)
+                if time.time() - last_info > 1:
+                    last_info = time.time()
+                    info = b.info()
+                    if info.get("url") != last_url or info.get("title") != last_title:
+                        last_url, last_title = info.get("url", ""), info.get("title", "")
+                        ws.send(json.dumps({"url": last_url, "title": last_title}))
+                _cr_touch(api)
+                time.sleep(delay)
+        except Exception:
+            pass
+        finally:
+            stop.set()
+            _cr_touch(api, -1)
+
     @sock.route("/ws/web")
     def ws_web(ws):
         # one socket: frames (binary) go down, input + address (JSON text) go up; survives the tunnel.
