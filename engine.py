@@ -837,22 +837,31 @@ def research_fill(opts, doc_name, doc_text, assignment, progress=None, cancel=No
             continue
         progress("thought", f"Researching {i} of {len(questions)}: {query[:70]}…")
         res = brave_search(query, key) if key else ddg_search(query, 6)
-        res = [] if isinstance(res, dict) else res
+        if isinstance(res, dict):  # that backend failed or is unavailable → try DuckDuckGo
+            res = ddg_search(query, 6)
+        if isinstance(res, dict):
+            res = []
         try:
-            res = sources.filter_results(res, opts) or res
+            kept = sources.filter_results(res, opts)  # a list of allowed results, or an error dict if all were rejected
+            res = kept if isinstance(kept, list) else []  # error dict -> treat as zero allowed, never keep the rejected ones
         except Exception:
             pass
+        if not res:  # no allowed results → skip, don't answer with nothing to go on
+            continue
         srcs = [{"title": r.get("title"), "url": r.get("url"), "snippet": r.get("snippet")} for r in res[:3]]
-        if res:  # pull one real page for depth beyond the snippet
-            try:
-                import review
-                txt = review._page_text(res[0].get("url") or "")
-                if txt:
-                    srcs.append({"url": res[0].get("url"),
-                                 "excerpt": re.sub(r"\s+", " ", txt).strip()[:1500]})
-            except Exception:
-                pass
+        try:  # pull one real page for depth beyond the snippet
+            import review
+            txt = review._page_text(res[0].get("url") or "")
+            if txt:
+                srcs.append({"url": res[0].get("url"),
+                             "excerpt": re.sub(r"\s+", " ", txt).strip()[:1500]})
+        except Exception:
+            pass
         research.append({"question": q.get("after"), "sources": srcs})
+
+    if not research:  # research was the whole point; don't silently answer from nothing
+        raise RuntimeError("Couldn't pull any web results to work from. Check the connection, "
+                           "loosen the source rules, or try again.")
 
     sys2 = "\n".join([
         "You fill in a student's own copy of a teacher's Google Doc using the web research provided.",
