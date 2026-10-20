@@ -248,11 +248,32 @@ def _domain_ready():
     return os.path.isfile(os.path.join(CF_HOME, "cert.pem"))
 
 
-def setup_domain():
-    """One-time: sign in to Cloudflare, make the 'folio' tunnel and point your domain at it."""
+def _configure_domain(host):
+    """Interactive Cloudflare setup for `host`: sign in, make the tunnel, point the domain at it.
+    Returns True once it's ready. Safe to call from start-folio.bat the first time."""
     if not ensure_cloudflared():
-        input("Press Enter to close.")
-        return
+        return False
+    print()
+    say("A browser will open. Pick the domain '%s' and click Authorize." % host)
+    _cf("tunnel", "login")
+    if not _domain_ready():
+        say("Cloudflare sign-in didn't finish.")
+        return False
+    if TUNNEL_NAME not in (_cf("tunnel", "list").stdout or ""):
+        say("Creating the tunnel…")
+        r = _cf("tunnel", "create", TUNNEL_NAME)
+        if r.returncode:
+            say(r.stderr.strip()[:300])
+    say("Pointing %s at Folio…" % host)
+    r = _cf("tunnel", "route", "dns", "--overwrite-dns", TUNNEL_NAME, host)
+    if r.returncode and "already" not in (r.stderr or "").lower():
+        say(r.stderr.strip()[:300])
+    set_env_value("FOLIO_TUNNEL_HOSTNAME", host)
+    return _domain_ready()
+
+
+def setup_domain():
+    """One-time (via setup-domain.bat): ask for the domain, then connect it."""
     env = {}
     if os.path.isfile(ENV_FILE):
         for line in open(ENV_FILE, encoding="utf-8"):
@@ -264,26 +285,13 @@ def setup_domain():
         say("No domain given.")
         input("Press Enter to close.")
         return
+    ok = _configure_domain(host)
     print()
-    say("A browser will open. Pick the domain '%s' and click Authorize." % host)
-    _cf("tunnel", "login")
-    if not _domain_ready():
-        say("Sign-in didn't finish. Run setup-domain.bat again.")
-        input("Press Enter to close.")
-        return
-    if TUNNEL_NAME not in (_cf("tunnel", "list").stdout or ""):
-        say("Creating the tunnel…")
-        r = _cf("tunnel", "create", TUNNEL_NAME)
-        if r.returncode:
-            say(r.stderr.strip()[:300])
-    say("Pointing %s at Folio…" % host)
-    r = _cf("tunnel", "route", "dns", "--overwrite-dns", TUNNEL_NAME, host)
-    if r.returncode and "already" not in (r.stderr or "").lower():
-        say(r.stderr.strip()[:300])
-    set_env_value("FOLIO_TUNNEL_HOSTNAME", host)
-    print()
-    say("Done! Folio will always be at:  https://%s" % host)
-    say("Start it with start-folio.bat. (DNS can take a few minutes the very first time.)")
+    if ok:
+        say("Done! Folio will always be at:  https://%s" % host)
+        say("Start it with start-folio.bat. (DNS can take a few minutes the very first time.)")
+    else:
+        say("Setup didn't finish — run setup-domain.bat again.")
     input("Press Enter to close.")
 
 
@@ -334,6 +342,9 @@ def main():
         return
 
     host = os.environ.get("FOLIO_TUNNEL_HOSTNAME", "").strip().lower()
+    if host and not _domain_ready():  # domain set but not connected yet → do the one-time setup now
+        say("First time with your domain '%s' — let's connect it to Cloudflare (one time)." % host)
+        _configure_domain(host)
     bar = "=" * 60
     if host and _domain_ready():
         # your own domain → a stable link that never changes
