@@ -600,7 +600,7 @@ if sock is not None:
 
         threading.Thread(target=reader, daemon=True).start()
         last, last_url, last_title, last_info = None, "", "", 0.0
-        frame_interval = 1 / 40  # leave a little headroom for input and slower tunnel connections
+        frame_interval = 1 / 60  # target 60; capture and transport time set the actual rate
         delay = 0.01
         try:
             while not stop.is_set():
@@ -652,7 +652,7 @@ if sock is not None:
         threading.Thread(target=reader, daemon=True).start()
 
         last, last_url, last_info = None, "", 0.0
-        frame_interval = 1 / 40
+        frame_interval = 1 / 60
         delay = 0.015
         while not stop.is_set():
             try:
