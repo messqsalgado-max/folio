@@ -612,7 +612,7 @@ if sock is not None:
         code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5))
         while code in _game_rooms:
             code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5))
-        board = [""] * 9 if game == "tictactoe" else ([""] * 64 if game == "reversi" else [""] * 42)
+        board = [""] * 9 if game == "tictactoe" else ([""] * 64 if game == "reversi" else ([""] * 225 if game == "gomoku" else [""] * 42))
         if game == "reversi":
             board[27], board[28], board[35], board[36] = "W", "B", "B", "W"
         room = {"code": code, "game": game, "board": board, "turn": 0, "winner": "", "draw": False,
@@ -658,6 +658,21 @@ if sock is not None:
                         count += 1; rr += dr * sign; cc += dc * sign
                 if count >= 4:
                     room["winner"] = token
+                    break
+        elif room["game"] == "gomoku":
+            if not isinstance(move, int) or not 0 <= move < 225 or board[move]:
+                return False
+            token = "B" if seat == 0 else "W"
+            board[move] = token
+            row, col = divmod(move, 15)
+            for dr, dc in ((0,1),(1,0),(1,1),(1,-1)):
+                count = 1
+                for sign in (-1, 1):
+                    rr, cc = row + dr * sign, col + dc * sign
+                    while 0 <= rr < 15 and 0 <= cc < 15 and board[rr * 15 + cc] == token:
+                        count += 1; rr += dr * sign; cc += dc * sign
+                if count >= 5:
+                    room["winner"] = "Black" if token == "B" else "White"
                     break
         else:  # Reversi: verify the move brackets opponent discs in at least one direction.
             if not isinstance(move, int) or not 0 <= move < 64 or board[move]:
@@ -909,7 +924,7 @@ if sock is not None:
                 action = data.get("type")
                 if action == "create":
                     game = data.get("game")
-                    if game not in ("tictactoe", "connect4", "reversi"):
+                    if game not in ("tictactoe", "connect4", "reversi", "gomoku"):
                         _social_send(ws, {"type": "error", "message": "Choose a supported game."}); continue
                     with _social_lock:
                         if room:
@@ -945,7 +960,7 @@ if sock is not None:
                     with _social_lock:
                         if len(room["players"]) == 2:
                             game = room["game"]
-                            room["board"] = [""] * 9 if game == "tictactoe" else ([""] * 64 if game == "reversi" else [""] * 42)
+                            room["board"] = [""] * 9 if game == "tictactoe" else ([""] * 64 if game == "reversi" else ([""] * 225 if game == "gomoku" else [""] * 42))
                             if game == "reversi":
                                 room["board"][27], room["board"][28], room["board"][35], room["board"][36] = "W", "B", "B", "W"
                             room["winner"] = ""; room["draw"] = False; room["turn"] = 1 - room["turn"]; room["notice"] = ""
