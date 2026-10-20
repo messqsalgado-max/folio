@@ -1,6 +1,23 @@
 # Folio (web)
 
-Research studio for slideshows and one-pagers, on your phone.
+Research studio for slideshows and one-pagers, on your phone or Chromebook.
+
+## Run it on a spare PC, open it from a Chromebook (free)
+
+Best setup if you have a Windows PC that can stay on: it runs the full Folio (Classroom included, with a
+real Chrome), and a free Cloudflare tunnel gives it a public link your Chromebook opens — nothing to
+install on the Chromebook.
+
+1. On the spare PC, install **Python 3.12** from python.org (tick "Add python.exe to PATH").
+2. Put these files on the PC (download this repo as a ZIP, or copy the folder over).
+3. Double-click **start-folio.bat**. The first run makes a **folio.env** file and opens it — fill in your
+   `APP_PASSWORD`, `GEMINI_API_KEY` (from aistudio.google.com) and `SECRET_KEY`, save, and run it again.
+4. It downloads the tunnel, starts Folio, and prints a link like `https://xxxx.trycloudflare.com`.
+   Open that on the Chromebook and sign in with your password.
+
+Keep the window open (closing it takes Folio offline). The link changes each time you start it. Your
+projects and Classroom sign-in stay on the PC between runs. If the PC is usually locked, set
+`FOLIO_HEADLESS=1` in folio.env so Chrome runs without a window.
 
 ## Full Folio with Classroom: GitHub Codespaces (free)
 
