@@ -17,12 +17,14 @@ import hashlib
 import hmac
 import json
 import os
+import random
 import re
 import secrets
 import sys
 import threading
 import time
 import types
+from urllib.parse import urlparse
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.abspath(os.environ.get("FOLIO_DATA") or os.path.join(ROOT, "web_data"))
@@ -650,6 +652,138 @@ if sock is not None:
             room["draw"] = True
         room["turn"] = 1 - seat
         return True
+
+    @sock.route("/ws/cr-typewriter")
+    def ws_cr_typewriter(ws):
+        """Pace text into the focused field of this connection's Classroom browser only."""
+        if not CLOUD_CR or not session.get("ok") or not session.get("uid"):
+            return
+        _ctx.uid = session["uid"]
+        api = cur()
+        browser = getattr(api._classroom, "browser", None)
+        if browser is None or not browser.is_running():
+            _social_send(ws, {"type": "error", "message": "Open Classroom and click into its answer box first."})
+            return
+        try:
+            config = json.loads(ws.receive() or "{}")
+        except (TypeError, ValueError):
+            config = {}
+        if not isinstance(config, dict) or config.get("type") != "start":
+            _social_send(ws, {"type": "error", "message": "No text was sent."})
+            return
+        content = str(config.get("text", ""))[:50000]
+        if not content.strip():
+            _social_send(ws, {"type": "error", "message": "Add some text first."})
+            return
+
+        def allowed_target():
+            try:
+                host = (urlparse(browser.info().get("url", "")).hostname or "").lower()
+                return host in ("classroom.google.com", "docs.google.com")
+            except Exception:
+                return False
+
+        if not allowed_target():
+            _social_send(ws, {"type": "error", "message": "Open Google Classroom or its Google Doc, then click the text field before typing."})
+            return
+        try:
+            wpm = max(10, min(150, int(config.get("wpm", 52))))
+            variation = max(0, min(100, int(config.get("variation", 45)))) / 100
+            countdown = max(0, min(15, int(config.get("countdown", 3))))
+            natural = bool(config.get("natural", True))
+        except (TypeError, ValueError):
+            _social_send(ws, {"type": "error", "message": "Invalid typing settings."})
+            return
+        profile = config.get("profile") if isinstance(config.get("profile"), dict) else {}
+        def profile_ms(key, default, maximum):
+            try:
+                return max(0, min(maximum, int(profile.get(key, default)))) / 1000
+            except (TypeError, ValueError):
+                return default / 1000
+        word_pause = profile_ms("word", 80, 600)
+        comma_pause = profile_ms("comma", 250, 1500)
+        sentence_pause = profile_ms("sentence", 700, 3000)
+        line_pause = profile_ms("line", 1500, 5000)
+        try:
+            think_chance = max(0, min(15, int(profile.get("think", 3)))) / 100
+        except (TypeError, ValueError):
+            think_chance = .03
+
+        active, stopped = threading.Event(), threading.Event()
+        active.set()
+        def read_controls():
+            try:
+                while not stopped.is_set():
+                    raw = ws.receive()
+                    if raw is None:
+                        stopped.set(); active.set(); return
+                    try:
+                        action = json.loads(raw).get("type")
+                    except (TypeError, ValueError, AttributeError):
+                        continue
+                    if action == "pause": active.clear()
+                    elif action == "resume": active.set()
+                    elif action == "stop": stopped.set(); active.set(); return
+            except Exception:
+                stopped.set(); active.set()
+
+        def wait_while_active(seconds):
+            left = seconds
+            while left > 0 and not stopped.is_set():
+                if not active.is_set():
+                    if not paused_reported[0]:
+                        _social_send(ws, {"type": "status", "status": "paused"})
+                        paused_reported[0] = True
+                    time.sleep(.05)
+                    continue
+                if paused_reported[0]:
+                    _social_send(ws, {"type": "status", "status": "resumed"})
+                    paused_reported[0] = False
+                step = min(.05, left)
+                time.sleep(step)
+                left -= step
+
+        _cr_touch(api, +1)
+        threading.Thread(target=read_controls, daemon=True).start()
+        index, paused_reported, last_domain_check = 0, [False], 0
+        check_every = max(1, wpm * 5 // 30)
+        progress_every = max(1, len(content) // 100)
+        try:
+            for second in range(countdown, 0, -1):
+                if stopped.is_set(): break
+                _social_send(ws, {"type": "status", "status": "countdown", "seconds": second})
+                wait_while_active(1)
+            for index, char in enumerate(content, start=1):
+                if stopped.is_set(): break
+                while not active.is_set() and not stopped.is_set():
+                    wait_while_active(.05)
+                if stopped.is_set(): break
+                if index == 1 or index - last_domain_check >= check_every:
+                    if not allowed_target():
+                        raise RuntimeError("Stopped because the Classroom browser left Google Classroom or Docs.")
+                    last_domain_check = index
+                if char == "\n": browser.key("Enter")
+                elif char == "\t": browser.key("Tab")
+                elif char != "\r": browser.type(char)
+                if index % progress_every == 0 or index == len(content):
+                    _social_send(ws, {"type": "status", "status": "typing", "index": index, "total": len(content)})
+                delay = 12 / wpm
+                if natural:
+                    delay = max(delay * .25, delay * (1 + random.uniform(-1, 1) * variation * .8))
+                    if char == " ": delay += random.uniform(.6, 1.4) * word_pause
+                    if char in ".!?": delay += random.uniform(.6, 1.4) * sentence_pause
+                    elif char in ",;:": delay += random.uniform(.6, 1.4) * comma_pause
+                    if char == "\n": delay += random.uniform(.6, 1.4) * line_pause
+                    if char == " " and random.random() < think_chance: delay += random.uniform(.6, 2.2)
+                wait_while_active(delay)
+            if stopped.is_set():
+                _social_send(ws, {"type": "stopped", "index": index, "total": len(content)})
+            else:
+                _social_send(ws, {"type": "done", "index": len(content), "total": len(content)})
+        except Exception as e:
+            _social_send(ws, {"type": "error", "message": str(e)[:200]})
+        finally:
+            stopped.set(); active.set(); _cr_touch(api, -1)
 
     @sock.route("/ws/chat")
     def ws_chat(ws):
