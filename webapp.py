@@ -505,11 +505,12 @@ def web_frame():
 @app.get("/api/web/stream")
 def web_stream():
     """A continuous MJPEG stream — far smoother than polling one frame at a time. Only changed frames
-    are pushed, so a still page costs almost nothing; a moving page runs as fast as the PC can capture."""
+    are pushed. Frame capture backs off while the page is still and speeds up again when it changes."""
     api, b = _web_browser()
 
     def gen():
         last = None
+        delay = 0.015
         while True:
             try:
                 img = b.shot()  # starts the independent personal-browser process if needed
@@ -519,8 +520,11 @@ def web_stream():
                 last = img
                 yield (b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: "
                        + str(len(img)).encode() + b"\r\n\r\n" + img + b"\r\n")
+                delay = 0.015
+            else:
+                delay = min(delay * 1.5, 0.12)
             _web_touch(api)
-            time.sleep(0.015)  # up to ~60 checks/sec; real rate is capped by capture speed
+            time.sleep(delay)
     r = Response(gen(), mimetype="multipart/x-mixed-replace; boundary=frame")
     r.headers["Cache-Control"] = "no-store"
     return r
@@ -586,12 +590,16 @@ if sock is not None:
         threading.Thread(target=reader, daemon=True).start()
 
         last, last_url, last_info = None, "", 0.0
+        delay = 0.015
         while not stop.is_set():
             try:
                 img = b.shot()  # launches only the personal-browser process
                 if img and img != last:
                     last = img
                     ws.send(img)
+                    delay = 0.015
+                else:
+                    delay = min(delay * 1.5, 0.12)
                 if time.time() - last_info > 1:  # keep the address bar current
                     last_info = time.time()
                     info = b.info()
@@ -599,7 +607,7 @@ if sock is not None:
                         last_url = info.get("url")
                         ws.send(json.dumps({"url": last_url, "title": info.get("title", "")}))
                 _web_touch(api)
-                time.sleep(0.008)
+                time.sleep(delay)
             except Exception:
                 break
         stop.set()
