@@ -6,7 +6,6 @@ through a live view on their phone (screenshots out, taps and typing in); Folio'
 Playwright's sync API must stay on one thread, so every browser call goes through a worker thread.
 """
 
-import base64
 import os
 import queue
 import re
@@ -110,7 +109,11 @@ class Browser:
             job = self.jobs.get()
             if job is None:  # shutdown: free the memory for everything else Folio does
                 break
-            fn, box, done = job
+            fn, box, done, cancelled = job
+            # Don't execute stale screenshots or inputs after the caller has timed out.
+            if cancelled.is_set():
+                done.set()
+                continue
             try:
                 box["r"] = fn()
             except Exception as e:
@@ -150,9 +153,10 @@ class Browser:
 
     def run(self, fn, timeout=60):
         self.start()
-        box, done = {}, threading.Event()
-        self.jobs.put((fn, box, done))
+        box, done, cancelled = {}, threading.Event(), threading.Event()
+        self.jobs.put((fn, box, done, cancelled))
         if not done.wait(timeout):
+            cancelled.set()
             raise RuntimeError("The browser didn't answer.")
         if "e" in box:
             raise box["e"]
@@ -194,24 +198,26 @@ class Browser:
             size = self._live_viewports.get(tab) or (SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW)
             if p.viewport_size != size:
                 p.set_viewport_size(size)
-            return p.screenshot(type="jpeg", quality=quality)
-        img = self.run(go, timeout=20)
+            return p.screenshot(type="jpeg", quality=quality, timeout=5000)
+        try:
+            # Bound queue waits so slow captures don't pile up behind the worker.
+            img = self.run(go, timeout=5)
+        except RuntimeError:
+            # Preserve the most recent good image during a transient capture stall.
+            if hit:
+                return hit[1]
+            raise
         cache[key] = (time.time(), img)
         return img
 
     def shot(self, tab="main", quality=50):
-        """A fresh screenshot for the live stream; use direct CDP capture to minimize frame overhead."""
+        """A fresh screenshot for the live stream, with a cancellable capture timeout."""
         def go():
             p = self._page(tab)
             size = self._live_viewports.get(tab) or (SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW)
             if p.viewport_size != size:
                 p.set_viewport_size(size)
-            try:
-                frame = self.sessions[tab].send("Page.captureScreenshot", {
-                    "format": "jpeg", "quality": quality, "fromSurface": True})
-                return base64.b64decode(frame["data"])
-            except Exception:
-                return p.screenshot(type="jpeg", quality=quality)
+            return p.screenshot(type="jpeg", quality=quality, timeout=5000)
         return self.run(go, timeout=20)
 
     def set_live_viewport(self, width, height, tab="main"):

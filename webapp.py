@@ -431,7 +431,11 @@ def cr_frame():
     b = _browser()
     if not b.is_running():
         abort(409)
-    img = b.frame(quality=CR_STREAM_QUALITY, cache_ttl=0)
+    try:
+        img = b.frame(quality=CR_STREAM_QUALITY, cache_ttl=0)
+    except RuntimeError:
+        # A temporary Chromium capture stall should leave the existing image in place.
+        return ("", 503, {"Retry-After": "1", "Cache-Control": "no-store"})
     h = hashlib.md5(img).hexdigest()
     if h == api._cr["hash"] and request.args.get("f") != "1":
         return ("", 204)  # nothing changed since the last frame — save the bandwidth
@@ -502,7 +506,10 @@ def web_frame():
     api, b = _web_browser()
     if not b.is_running():
         abort(409)
-    img = b.frame()
+    try:
+        img = b.frame()
+    except RuntimeError:
+        return ("", 503, {"Retry-After": "1", "Cache-Control": "no-store"})
     h = hashlib.md5(img).hexdigest()
     if h == api._web["hash"] and request.args.get("f") != "1":
         return ("", 204)
