@@ -1,5 +1,5 @@
-# Folio web app (Docker: Render, ...). Secrets / environment variables:
-#   APP_PASSWORD, GEMINI_API_KEY (and/or ANTHROPIC_API_KEY), SECRET_KEY
+# Folio web app (Docker: Render, ...). Required secrets / environment variables:
+#   APP_PASSWORD, SECRET_KEY
 FROM python:3.12-slim
 
 # Chromium for the Classroom feature lives here so the non-root user can read it

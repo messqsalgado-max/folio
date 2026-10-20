@@ -11,9 +11,10 @@ install on the Chromebook.
 1. On the spare PC, install **Python 3.12** from python.org (tick "Add python.exe to PATH").
 2. Put these files on the PC (download this repo as a ZIP, or copy the folder over).
 3. Double-click **start-folio.bat**. The first run makes a **folio.env** file and opens it — fill in your
-   `APP_PASSWORD`, `GEMINI_API_KEY` (from aistudio.google.com) and `SECRET_KEY`, save, and run it again.
+   `APP_PASSWORD` and `SECRET_KEY`, save, and run it again.
 4. It downloads the tunnel, starts Folio, and prints a link like `https://xxxx.trycloudflare.com`.
-   Open that on the Chromebook and sign in with your password.
+   Open that on the Chromebook and sign in with your password. Add your own AI API key in Settings;
+   each signed-in browser connection stores its key separately.
 
 Keep the window open (closing it takes Folio offline). By default the link changes each time you start it.
 Your projects and Classroom sign-in stay on the PC between runs. If the PC is usually locked, set
@@ -35,8 +36,7 @@ you see that Chrome live, sign in to your school account yourself, and Folio the
 imports assignments and writes into your existing docs, like the Windows app. You click Turn in.
 
 1. **github.com/settings/codespaces → New secret** (give each one access to this repository):
-   `APP_PASSWORD` (the password you'll type to open Folio), `GEMINI_API_KEY` (from aistudio.google.com),
-   `SECRET_KEY` (any long random text).
+   `APP_PASSWORD` (the password you'll type to open Folio), and `SECRET_KEY` (any long random text).
 2. On this repository: **Code → Codespaces → Create codespace on main**. The first start installs
    everything (about 5 minutes).
 3. Open **github.com/codespaces**, tap the codespace, then **Ports → 7860 → Open in browser**
@@ -48,13 +48,14 @@ start it again from github.com/codespaces. Projects and the Classroom sign-in st
 ## Render (free) — Classroom included
 
 1. On render.com: **New → Web Service**, pick this repository, Language **Docker**, Instance type **Free**.
-2. Add the three **Environment Variables**: `APP_PASSWORD`, `GEMINI_API_KEY`, `SECRET_KEY`.
+2. Add the two **Environment Variables**: `APP_PASSWORD`, `SECRET_KEY`.
+3. After opening Folio, each signed-in browser connection adds its own AI API key in Settings.
 
 Classroom works the same way here: open the Classroom tab, sign in through the live view, and Folio reads
 your To-do list, imports assignments and writes into your existing docs. You click Turn in.
 
-To fit Render's free 512 MB, the server's Chrome runs lean and headless and launches only while you're in
-Classroom, then shuts down a few minutes after you leave so slide-making gets the memory back.
+To fit Render's free 512 MB, each browser runs lean and headless, starts only when opened, and shuts down
+after its idle timeout so slide-making can use the memory.
 Notes and limits:
 
 - The free instance sleeps after 15 minutes unused (about a minute to wake), and its disk is wiped on

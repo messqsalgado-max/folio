@@ -4,11 +4,11 @@ Folio web app: the same Folio (engine, quality check, slides, rehearse...) serve
 Run locally:   py -3.12 webapp.py            (then open http://localhost:7860)
 Hosted:        see web/SPACE_README.md (Render free web service, or any Docker host)
 
-Settings come from environment variables (secrets on the host):
+Host secrets and per-connection settings:
   APP_PASSWORD       required: the password to open the app
-  GEMINI_API_KEY     and/or ANTHROPIC_API_KEY: the AI key(s), kept on the server
   SECRET_KEY         optional: signs the login cookie (random each start if unset)
   FOLIO_DATA         optional: where projects are stored (default ./web_data)
+  API keys            entered per signed-in browser connection in Folio Settings
   FOLIO_CLASSROOM    1 = run a real Chrome on the server for the Classroom features (needs Playwright;
                      the student signs in through the live view). Set up for GitHub Codespaces in .devcontainer
 """
@@ -49,7 +49,8 @@ import Folio  # noqa: E402
 USERS_DIR = os.path.join(DATA, "users")
 os.makedirs(USERS_DIR, exist_ok=True)
 Folio.DEFAULT_OUT = os.path.join(USERS_DIR, "_default", "Folio Projects")
-SERVER_KEY = "(saved on the server)"
+SAVED_KEY = "(saved for this connection)"
+KEY_MARKERS = (SAVED_KEY, "(saved on the server)")  # preserve pages opened before this update
 CLOUD_CR = os.environ.get("FOLIO_CLASSROOM") == "1"
 # opt-in personal browser. It uses its own Chrome process and profile, separate from Classroom.
 WEBTAB = CLOUD_CR and os.environ.get("FOLIO_BROWSER_TAB") == "1"
@@ -72,7 +73,7 @@ def _user_dir(uid=None):
 
 
 def load_settings():
-    """This device's own settings. The AI keys come from the host's secrets (shared, never sent to the browser)."""
+    """Read this signed-in connection's settings, including its own provider keys."""
     d = _user_dir()
     s = dict(DEFAULTS)
     try:
@@ -81,21 +82,12 @@ def load_settings():
     except Exception:
         pass
     s["out_dir"] = os.path.join(d, "Folio Projects")
-    if os.environ.get("GEMINI_API_KEY"):
-        s["gemini_key"] = os.environ["GEMINI_API_KEY"]
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        s["api_key"] = os.environ["ANTHROPIC_API_KEY"]
-        if not os.environ.get("GEMINI_API_KEY") and not s.get("provider_chosen"):
-            s["provider"] = "Claude"
     return s
 
 
 def save_settings(s):
     d = _user_dir()
     out = {k: v for k, v in dict(s).items() if k != "out_dir"}
-    for k, env in (("gemini_key", "GEMINI_API_KEY"), ("api_key", "ANTHROPIC_API_KEY")):
-        if os.environ.get(env):
-            out.pop(k, None)  # never write the server's shared keys into a device's file
     with open(os.path.join(d, "settings.json"), "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2)
 
@@ -152,18 +144,26 @@ class WebApi(Folio.Api):
 
     def get_settings(self):
         s = load_settings()
-        for k, env in (("gemini_key", "GEMINI_API_KEY"), ("api_key", "ANTHROPIC_API_KEY")):
-            if os.environ.get(env):
-                s[k] = SERVER_KEY
+        for k in ("gemini_key", "api_key", "brave_key"):
+            if s.get(k):
+                s[k] = SAVED_KEY
         s["web"] = True
         s["cloud_cr"] = CLOUD_CR
         return s
 
     def save_settings(self, data):
-        data = {k: v for k, v in (data or {}).items() if v != SERVER_KEY and k != "out_dir"}
+        data = dict(data or {})
+        current = load_settings()
+        for k, value in data.items():
+            if k == "out_dir" or value is None:
+                continue
+            if k in ("gemini_key", "api_key", "brave_key") and value in KEY_MARKERS:
+                continue  # the page sends this marker to preserve the connection's existing key
+            current[k] = value
         if "provider" in data:
-            data["provider_chosen"] = True
-        return Folio.Api.save_settings(self, data) and self.get_settings()
+            current["provider_chosen"] = True
+        save_settings(current)
+        return self.get_settings()
 
 
 _users_lock = threading.Lock()

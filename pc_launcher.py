@@ -2,8 +2,9 @@
 Run Folio on this PC and put it online with a free Cloudflare tunnel, so you can open it from your
 school Chromebook (or phone). Just double-click start-folio.bat.
 
-First run makes a settings file (folio.env) next to this script. Fill in your password and Gemini key,
-save, and run start-folio.bat again. Keep the window that opens; closing it takes Folio offline.
+First run makes a settings file (folio.env) next to this script. Fill in your password, save, and run
+start-folio.bat again. Add your own API key in Folio Settings after signing in. Keep the window that
+opens; closing it takes Folio offline.
 """
 
 import json
@@ -36,9 +37,6 @@ TEMPLATE = """# Fill these in, save this file, then run start-folio.bat again.
 # A password you make up. You'll type it to open Folio on the Chromebook.
 APP_PASSWORD=
 
-# Your Gemini key from aistudio.google.com (click "Get API key"). It starts with AIza...
-GEMINI_API_KEY=
-
 # Any long random text. Keeps you signed in. Just mash the keyboard.
 SECRET_KEY=
 
@@ -65,7 +63,7 @@ def load_env():
             f.write(TEMPLATE)
         print()
         say("I made a settings file:  folio.env")
-        say("Open it, fill in your password and Gemini key, save, then run start-folio.bat again.")
+        say("Open it, fill in your password, save, then run start-folio.bat again. Add your own API key in Folio Settings after signing in.")
         print()
         _open(ENV_FILE)
         return None
@@ -76,9 +74,9 @@ def load_env():
             k, v = line.split("=", 1)
             if v.strip():
                 env[k.strip()] = v.strip()
-    if not env.get("APP_PASSWORD") or not env.get("GEMINI_API_KEY"):
+    if not env.get("APP_PASSWORD"):
         print()
-        say("folio.env still needs APP_PASSWORD and GEMINI_API_KEY. Fill them in and run start-folio.bat again.")
+        say("folio.env still needs APP_PASSWORD. Fill it in and run start-folio.bat again.")
         print()
         _open(ENV_FILE)
         return None

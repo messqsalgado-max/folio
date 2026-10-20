@@ -28,8 +28,9 @@ file, never clicks Turn in). There is also a **web version** of the same app for
     under `FOLIO_DATA/users/<uid>` (own projects, settings, Classroom browser profile, and personal Browser
     profile), its own `WebApi` instance + events. Same `APP_PASSWORD` for all; password gates access, uid
     separates data. `load_settings`/`save_settings`/`CR_CACHE` are made per-device via a threadlocal `_ctx.uid`.
-  - AI keys come from env (`GEMINI_API_KEY` / `ANTHROPIC_API_KEY`), masked from the browser as
-    `"(saved on the server)"`. Login password is `APP_PASSWORD`; `SECRET_KEY` signs the cookie.
+  - Gemini, Anthropic, and Brave API keys are entered separately per signed-in browser connection and
+    stored in that connection's settings file. The browser gets only a saved marker, never the key.
+    Login password is `APP_PASSWORD`; `SECRET_KEY` signs the cookie.
   - `ALLOWED` is the method allowlist exposed to the browser.
 - `web/bridge.js` — stands in for `window.pywebview.api` so `ui.html` runs unchanged in a browser;
   polls `/api/events`; has separate live panels for Classroom sign-in and personal browsing, sharing
@@ -51,7 +52,7 @@ file, never clicks Turn in). There is also a **web version** of the same app for
      connected). Falls back to a random `trycloudflare.com` link if no domain is configured.
    - Batch files: `start-folio.bat`, `update-folio.bat` (pulls latest from GitHub, keeps `folio.env`/data),
      `enable-browser.bat` / `disable-browser.bat` (toggle the Browser tab), `setup-domain.bat`.
-   - `folio.env` holds `APP_PASSWORD`, `GEMINI_API_KEY`, `SECRET_KEY`, and optional `FOLIO_HEADLESS`,
+   - `folio.env` holds `APP_PASSWORD`, `SECRET_KEY`, and optional `FOLIO_HEADLESS`,
      `FOLIO_BROWSER_TAB`, `FOLIO_TUNNEL_HOSTNAME`.
 2. **Render (free, Docker)** — no PC needed, but 512 MB (Classroom runs lean/headless, one-at-a-time,
    sleeps, re-sign-in after cold start). `web/Dockerfile`, `web/SPACE_README.md`.
@@ -82,7 +83,7 @@ Goal was a smooth remote browser on the Chromebook. Progression:
   40 ms on a real PC / 200 ms headless (`FOLIO_FRAME_MS`).
 
 ## Key env vars (web)
-`APP_PASSWORD` (required), `GEMINI_API_KEY` and/or `ANTHROPIC_API_KEY`, `SECRET_KEY`, `FOLIO_DATA`,
+`APP_PASSWORD` (required), `SECRET_KEY`, `FOLIO_DATA`,
 `FOLIO_CLASSROOM=1` (enable server Chrome), `FOLIO_HEADLESS=1` (no window), `FOLIO_BROWSER_CHANNEL`
 (`none`=bundled Chromium, else msedge/chrome), `FOLIO_BROWSER_TAB=1` (personal Browser tab),
 `FOLIO_TUNNEL_HOSTNAME` (fixed domain), `FOLIO_CR_IDLE` (seconds).
