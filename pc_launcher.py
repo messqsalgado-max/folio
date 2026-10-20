@@ -74,19 +74,46 @@ def _open(path):
 
 
 def ensure_deps():
-    try:
-        import flask  # noqa: F401
-        import playwright  # noqa: F401
-        return True
-    except Exception:
+    missing = False
+    for mod in ("flask", "playwright", "anthropic", "pptx", "docx", "reportlab", "PIL", "ddgs"):
+        try:
+            __import__(mod)
+        except Exception:
+            missing = True
+            break
+    if missing:
         say("Installing what Folio needs (one time, a couple of minutes)…")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "--upgrade", "pip"])
+        except Exception:
+            pass
         try:
             subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "-r",
                                    os.path.join(HERE, "requirements.txt")])
-            return True
         except Exception as e:
             say("Couldn't install the packages:", e)
             return False
+    return ensure_browser()
+
+
+def ensure_browser():
+    """Classroom needs a Chrome. Windows has Edge built in; if it doesn't, fetch Playwright's Chromium."""
+    edge = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+    if os.path.isfile(edge):
+        return True
+    marker = os.path.join(HERE, ".chromium-ok")
+    if os.path.isfile(marker):
+        os.environ["FOLIO_BROWSER_CHANNEL"] = "none"
+        return True
+    say("Getting a browser for Classroom (one time)…")
+    try:
+        subprocess.check_call([sys.executable, "-m", "playwright", "install", "chromium"])
+        open(marker, "w").close()
+        os.environ["FOLIO_BROWSER_CHANNEL"] = "none"
+        return True
+    except Exception as e:
+        say("Couldn't set up a browser automatically:", e)
+        return False
 
 
 def ensure_cloudflared():
