@@ -359,6 +359,15 @@ def import_file():
 # Chrome runs only while its feature is in use and is shut down after idle time.
 CR_IDLE = int(os.environ.get("FOLIO_CR_IDLE") or 360)
 CR_STREAM_QUALITY = 55
+# Smooth/Sharp live-view toggle: fewer bytes per frame -> more frames fit the tunnel's upload (smooth),
+# vs a crisper but heavier frame (sharp). The viewer's choice is stored on the browser object below.
+STREAM_SMOOTH = int(os.environ.get("FOLIO_STREAM_SMOOTH") or 42)
+STREAM_SHARP = int(os.environ.get("FOLIO_STREAM_SHARP") or 70)
+
+
+def _stream_q(b):
+    """The JPEG quality the viewer picked for this browser's live stream (defaults to Smooth)."""
+    return getattr(b, "_stream_q", STREAM_SMOOTH)
 _cr_lock = threading.Lock()
 
 
@@ -432,7 +441,7 @@ def cr_frame():
     if not b.is_running():
         abort(409)
     try:
-        img = b.frame(quality=CR_STREAM_QUALITY, cache_ttl=0)
+        img = b.frame(quality=_stream_q(b), cache_ttl=0)
     except RuntimeError:
         # A temporary Chromium capture stall should leave the existing image in place.
         return ("", 503, {"Retry-After": "1", "Cache-Control": "no-store"})
@@ -485,6 +494,8 @@ def _cr_do(b, d):
         b.key(str(d.get("key", "")))
     elif kind == "nav":
         b.nav(str(d.get("what", "")))
+    elif kind == "quality":
+        b._stream_q = STREAM_SHARP if d.get("mode") == "sharp" else STREAM_SMOOTH
 
 
 # ---------------------------------------------------------------- general browser panel (opt-in; tab "web")
@@ -515,7 +526,7 @@ def web_frame():
     if not b.is_running():
         abort(409)
     try:
-        img = b.frame()
+        img = b.frame(quality=_stream_q(b))
     except RuntimeError:
         return ("", 503, {"Retry-After": "1", "Cache-Control": "no-store"})
     h = hashlib.md5(img).hexdigest()
@@ -538,7 +549,7 @@ def web_stream():
         delay = 0.015
         while True:
             try:
-                img = b.shot()  # starts the independent personal-browser process if needed
+                img = b.shot(quality=_stream_q(b))  # starts the independent personal-browser process if needed
             except Exception:
                 break
             if img and img != last:
@@ -578,6 +589,8 @@ def _web_do(b, d):
         b.nav(str(d.get("what", "")))
     elif kind == "go":
         b.browse(str(d.get("url", "")))
+    elif kind == "quality":
+        b._stream_q = STREAM_SHARP if d.get("mode") == "sharp" else STREAM_SMOOTH
 
 
 @app.post("/api/web/input")
@@ -1012,7 +1025,7 @@ if sock is not None:
         try:
             while not stop.is_set():
                 frame_started = time.perf_counter()
-                img = b.shot(quality=CR_STREAM_QUALITY)
+                img = b.shot(quality=_stream_q(b))
                 if img and img != last:
                     last = img
                     ws.send(img)
@@ -1067,7 +1080,7 @@ if sock is not None:
         while not stop.is_set():
             try:
                 frame_started = time.perf_counter()
-                img = b.shot()  # launches only the personal-browser process
+                img = b.shot(quality=_stream_q(b))  # launches only the personal-browser process
                 if img and img != last:
                     last = img
                     ws.send(img)

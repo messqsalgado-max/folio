@@ -111,10 +111,10 @@
       const barLeft = cfg.address
         ? `<button data-a="back">‹</button><button data-a="forward">›</button><button data-a="reload">⟳</button>
 <input class="url" placeholder="Search or type a web address" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
-<button data-a="goto">Go</button><button data-a="close">Done</button><button data-a="zoom">Zoom</button>`
+<button data-a="goto">Go</button><button data-a="close">Done</button><button data-a="zoom">Zoom</button><button data-a="q" title="Trade sharpness for a smoother frame rate">Smooth</button>`
         : `<button data-a="close">Done</button><button data-a="back">‹</button>
 <button data-a="reload">⟳</button><button data-a="home">⌂</button><span class="t"></span>
-<button data-a="zoom">Zoom</button><button data-a="up">▲</button><button data-a="down">▼</button>`;
+<button data-a="zoom">Zoom</button><button data-a="up">▲</button><button data-a="down">▼</button><button data-a="q" title="Trade sharpness for a smoother frame rate">Smooth</button>`;
       d.innerHTML = `<div class="bar">${barLeft}</div>
 <div class="hint">${cfg.label} <span class="touch-only">Tap to click, swipe to scroll, type below.</span><span class="kb-only">Click, scroll and type like a normal page.</span></div>
 <div class="scr"><img alt="${cfg.address ? "Browser" : "Classroom"}"></div>
@@ -133,6 +133,14 @@
         return (chain = chain.then(() => fetch(cfg.base + "/input", {method: "POST", credentials: "same-origin",
           headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)})).then(() => L.kick()).catch(() => {}));
       };
+      const qbtn = d.querySelector('[data-a="q"]');
+      try { if (localStorage.getItem("folioLiveQ") === "sharp") L.quality = "sharp"; } catch (e) {}
+      if (!L.quality) L.quality = "smooth";
+      const applyQuality = () => { if (qbtn) qbtn.textContent = L.quality === "sharp" ? "Sharp" : "Smooth"; };
+      L.sendQuality = () => send({kind: "quality", mode: L.quality});  // apply the viewer's choice on the server
+      const toggleQuality = () => { L.quality = L.quality === "sharp" ? "smooth" : "sharp";
+        try { localStorage.setItem("folioLiveQ", L.quality); } catch (e) {} applyQuality(); L.sendQuality(); };
+      applyQuality();
       const goTo = () => { const u = (urlBar.value || "").trim(); if (!u) return;
         if (L.ws && L.ws.readyState === 1) { try { L.ws.send(JSON.stringify({kind: "go", url: u})); } catch (e) {} L.kick(); }
         else fetch(cfg.base + "/go", {method: "POST", credentials: "same-origin", headers: {"Content-Type": "application/json"},
@@ -188,6 +196,7 @@
         if (a === "goto") return goTo();
         if (a === "send") return typeOut(false);
         if (a === "zoom") { img.classList.toggle("z"); img.parentNode.classList.toggle("z"); return; }
+        if (a === "q") return toggleQuality();
         if (a === "hide") { inp.classList.toggle("hide"); e.target.textContent = inp.classList.contains("hide") ? "Show" : "Hide"; return; }
         if (a === "up" || a === "down") return send({kind: "scroll", x: 550, y: 400, dy: a === "up" ? -500 : 500});
         if (["back", "forward", "reload", "home"].includes(a)) return send({kind: "nav", what: a});
@@ -217,6 +226,7 @@
         L.viewportResize = L.syncViewport;
         window.addEventListener("resize", L.viewportResize, {passive: true});
         ws.addEventListener("open", L.viewportResize, {once: true});
+        ws.addEventListener("open", () => { try { L.sendQuality && L.sendQuality(); } catch (e) {} }, {once: true});
         ws.onclose = () => { if (L.useWs && L.on) L.fallback(); };
         ws.onerror = () => { if (L.useWs && L.on) L.fallback(); };
         setTimeout(() => { if (L.on && L.useWs && !got) L.fallback(); }, 7000);  // no frames in time → polling
@@ -227,6 +237,7 @@
       try { L.ws && L.ws.close(); } catch (e) {}
       L.ws = null; L.fast = 8; L.idle = 0;
       L.syncViewport();
+      try { L.sendQuality && L.sendQuality(); } catch (e) {}  // re-apply the quality choice over the HTTP fallback
     };
     L.open = function () {
       if (!L.el) L.build();
