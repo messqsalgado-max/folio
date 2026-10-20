@@ -51,11 +51,11 @@ os.makedirs(USERS_DIR, exist_ok=True)
 Folio.DEFAULT_OUT = os.path.join(USERS_DIR, "_default", "Folio Projects")
 SERVER_KEY = "(saved on the server)"
 CLOUD_CR = os.environ.get("FOLIO_CLASSROOM") == "1"
-# opt-in general browser panel (a personal remote browser); needs Chrome, so it rides on the Classroom browser
+# opt-in personal browser. It uses its own Chrome process and profile, separate from Classroom.
 WEBTAB = CLOUD_CR and os.environ.get("FOLIO_BROWSER_TAB") == "1"
 
-# Each device that signs in gets its own space — its own projects, settings and (for Classroom) its own
-# signed-in browser — so sharing the link never shares your Google account or your work with other devices.
+# Each device that signs in gets its own space — its own projects, settings, Classroom sign-in profile,
+# and personal-browser profile — so devices never share browser sessions or work.
 _ctx = threading.local()
 DEFAULTS = {"provider": "Gemini", "api_key": "", "gemini_key": "", "gemini_model": "gemini-3.8-flash",
             "brave_key": "", "model": "claude-sonnet-5-5", "theme": "Midnight"}
@@ -132,7 +132,7 @@ class Events:
 
 
 class WebApi(Folio.Api):
-    """One per device: Folio's own Api, its own events and (for Classroom) its own signed-in browser."""
+    """One per device, with separate browser sessions for Classroom and personal browsing."""
 
     def __init__(self, uid):
         self._uid = uid
@@ -140,11 +140,15 @@ class WebApi(Folio.Api):
         self._events = Events()
         self._window = self._events
         self._cr = {"last": 0.0, "inflight": 0, "hash": None}
+        self._web = {"last": 0.0, "inflight": 0, "hash": None}
         if CLOUD_CR:
             import cloudbrowser
             self._classroom = cloudbrowser.CloudClassroom(
                 profile=os.path.join(_user_dir(uid), "browser"),
                 on_closed=lambda: self._emit("cr_closed"))
+            if WEBTAB:
+                self._personal_browser = cloudbrowser.Browser(
+                    profile=os.path.join(_user_dir(uid), "personal_browser"))
 
     def get_settings(self):
         s = load_settings()
@@ -349,9 +353,8 @@ def import_file():
             pass
 
 
-# ---------------------------------------------------------------- the live view of the server's browser
-# Chrome is heavy (Render's free box has 512 MB), so it runs only while Classroom is in use and is shut
-# down once the student has been away from it for a while, giving the memory back to slide-making.
+# ---------------------------------------------------------------- Classroom and personal-browser lifecycles
+# Chrome runs only while its feature is in use and is shut down after idle time.
 CR_IDLE = int(os.environ.get("FOLIO_CR_IDLE") or 360)
 _cr_lock = threading.Lock()
 
@@ -360,6 +363,12 @@ def _cr_touch(api, delta=0):
     with _cr_lock:
         api._cr["inflight"] += delta
         api._cr["last"] = time.time()
+
+
+def _web_touch(api, delta=0):
+    with _cr_lock:
+        api._web["inflight"] += delta
+        api._web["last"] = time.time()
 
 
 def _cr_watchdog():
@@ -380,6 +389,24 @@ def _cr_watchdog():
                 pass
 
 
+def _web_watchdog():
+    while True:
+        time.sleep(30)
+        with _users_lock:
+            apis = list(USERS.values())
+        for api in apis:
+            try:
+                b = getattr(api, "_personal_browser", None)
+                if not (b and b.is_running()):
+                    continue
+                with _cr_lock:
+                    idle = api._web["inflight"] <= 0 and (time.time() - api._web["last"]) > CR_IDLE
+                if idle and not api.busy:
+                    b.stop()
+            except Exception:
+                pass
+
+
 def _browser():
     api = cur()
     b = getattr(api._classroom, "browser", None)
@@ -391,6 +418,8 @@ def _browser():
 
 if CLOUD_CR:
     threading.Thread(target=_cr_watchdog, daemon=True).start()
+if WEBTAB:
+    threading.Thread(target=_web_watchdog, daemon=True).start()
 
 
 @app.get("/api/cr/frame")
@@ -441,10 +470,10 @@ def _web_browser():
     if not WEBTAB:
         abort(404)
     api = cur()
-    b = getattr(api._classroom, "browser", None)
+    b = getattr(api, "_personal_browser", None)
     if b is None:
         abort(404)
-    _cr_touch(api)  # same Chrome as Classroom; keep it awake while in use
+    _web_touch(api)
     return api, b
 
 
@@ -453,7 +482,7 @@ def web_go():
     api, b = _web_browser()
     url = (request.get_json(silent=True) or {}).get("url", "")
     try:
-        return jsonify(b.browse(url, tab="web"))
+        return jsonify(b.browse(url))
     except Exception as e:
         return jsonify({"error": str(e)[:200]})
 
@@ -463,11 +492,11 @@ def web_frame():
     api, b = _web_browser()
     if not b.is_running():
         abort(409)
-    img = b.frame(tab="web")
+    img = b.frame()
     h = hashlib.md5(img).hexdigest()
-    if h == api._cr.get("webhash") and request.args.get("f") != "1":
+    if h == api._web["hash"] and request.args.get("f") != "1":
         return ("", 204)
-    api._cr["webhash"] = h
+    api._web["hash"] = h
     r = Response(img, mimetype="image/jpeg")
     r.headers["Cache-Control"] = "no-store"
     return r
@@ -483,14 +512,14 @@ def web_stream():
         last = None
         while True:
             try:
-                img = b.shot(tab="web")  # also starts Chrome if it isn't running yet
+                img = b.shot()  # starts the independent personal-browser process if needed
             except Exception:
                 break
             if img and img != last:
                 last = img
                 yield (b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: "
                        + str(len(img)).encode() + b"\r\n\r\n" + img + b"\r\n")
-            _cr_touch(api)
+            _web_touch(api)
             time.sleep(0.015)  # up to ~60 checks/sec; real rate is capped by capture speed
     r = Response(gen(), mimetype="multipart/x-mixed-replace; boundary=frame")
     r.headers["Cache-Control"] = "no-store"
@@ -500,24 +529,24 @@ def web_stream():
 @app.get("/api/web/info")
 def web_info():
     api, b = _web_browser()
-    return jsonify(b.info(tab="web") if b.is_running() else {"url": "", "title": "", "off": True})
+    return jsonify(b.info() if b.is_running() else {"url": "", "title": "", "off": True})
 
 
 def _web_do(b, d):
-    """Apply one input message to the web browsing tab (used by both the HTTP route and the WebSocket)."""
+    """Apply input to the separate personal-browser session."""
     kind = d.get("kind")
     if kind == "tap":
-        b.tap(float(d["x"]), float(d["y"]), tab="web")
+        b.tap(float(d["x"]), float(d["y"]))
     elif kind == "scroll":
-        b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]), tab="web")
+        b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]))
     elif kind == "type":
-        b.type(str(d.get("text", ""))[:2000], tab="web")
+        b.type(str(d.get("text", ""))[:2000])
     elif kind == "key":
-        b.key(str(d.get("key", "")), tab="web")
+        b.key(str(d.get("key", "")))
     elif kind == "nav":
-        b.nav(str(d.get("what", "")), tab="web")
+        b.nav(str(d.get("what", "")))
     elif kind == "go":
-        b.browse(str(d.get("url", "")), tab="web")
+        b.browse(str(d.get("url", "")))
 
 
 @app.post("/api/web/input")
@@ -539,7 +568,7 @@ if sock is not None:
             return
         _ctx.uid = session["uid"]
         api = cur()
-        b = getattr(api._classroom, "browser", None)
+        b = getattr(api, "_personal_browser", None)
         if b is None:
             return
         stop = threading.Event()
@@ -559,17 +588,17 @@ if sock is not None:
         last, last_url, last_info = None, "", 0.0
         while not stop.is_set():
             try:
-                img = b.shot(tab="web")  # also launches Chrome the first time
+                img = b.shot()  # launches only the personal-browser process
                 if img and img != last:
                     last = img
                     ws.send(img)
                 if time.time() - last_info > 1:  # keep the address bar current
                     last_info = time.time()
-                    info = b.info(tab="web")
+                    info = b.info()
                     if info.get("url") != last_url:
                         last_url = info.get("url")
                         ws.send(json.dumps({"url": last_url, "title": info.get("title", "")}))
-                _cr_touch(api)
+                _web_touch(api)
                 time.sleep(0.008)
             except Exception:
                 break

@@ -45,8 +45,8 @@ SECRET_KEY=
 # Optional: set to 1 to run Chrome with no window (use this if the PC is usually locked).
 FOLIO_HEADLESS=
 
-# Optional: set to 1 to add a general Browser tab (a web browser running on this PC) for your own
-# personal devices. Leave blank to keep it off. Not for getting around a school device's filter.
+# Optional: set to 1 to add a personal Browser tab with its own Chrome process/profile, separate from
+# Classroom sign-in. Leave blank to keep it off. Not for getting around a school device's filter.
 FOLIO_BROWSER_TAB=
 
 # Optional: your own Cloudflare domain for a fixed link (e.g. folio.gripe). Don't type it here by hand —

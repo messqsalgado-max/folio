@@ -25,20 +25,22 @@ file, never clicks Turn in). There is also a **web version** of the same app for
 ### 2. Web app (phone / Chromebook) — this is where recent work has been
 - `webapp.py` — Flask server that reuses Folio's own `Api` as `WebApi`. Key points:
   - **Per-device isolation**: each device that signs in gets a random `uid` cookie → its own folder
-    under `FOLIO_DATA/users/<uid>` (own projects, settings, and its own Classroom Google sign-in / browser
+    under `FOLIO_DATA/users/<uid>` (own projects, settings, Classroom browser profile, and personal Browser
     profile), its own `WebApi` instance + events. Same `APP_PASSWORD` for all; password gates access, uid
     separates data. `load_settings`/`save_settings`/`CR_CACHE` are made per-device via a threadlocal `_ctx.uid`.
   - AI keys come from env (`GEMINI_API_KEY` / `ANTHROPIC_API_KEY`), masked from the browser as
     `"(saved on the server)"`. Login password is `APP_PASSWORD`; `SECRET_KEY` signs the cookie.
   - `ALLOWED` is the method allowlist exposed to the browser.
 - `web/bridge.js` — stands in for `window.pywebview.api` so `ui.html` runs unchanged in a browser;
-  polls `/api/events`; contains the **live-view component** `makeLive(cfg)` used by both Classroom and
-  the Browser tab.
-- Classroom on the web uses **`cloudbrowser.py`**: a real Chrome runs on the server (Playwright), the
-  student sees it live and signs in themselves; `classroom.py` then drives it. Chrome launches only while
-  in use and an idle watchdog (`FOLIO_CR_IDLE`, default 360s) shuts it down to free memory.
+  polls `/api/events`; has separate live panels for Classroom sign-in and personal browsing, sharing
+  only their input and rendering mechanics.
+- Classroom sign-in and personal browsing use separate **`cloudbrowser.Browser`** instances, Chrome
+  processes and profiles. The student signs in to Classroom through its live panel; `classroom.py` then
+  drives that session. Each process launches on demand and the idle watchdog (`FOLIO_CR_IDLE`, default
+  360s) shuts it down independently.
 - Extra web features added: a **Games** tab (2048, Snake, Memory, Tetris, Minesweeper, Breakout), and an optional **Browser** tab (a
-  general web browser running on the PC, for personal devices — OFF by default via `FOLIO_BROWSER_TAB=1`).
+  general web browser with its own Chrome process and persistent profile, separate from Classroom — OFF
+  by default via `FOLIO_BROWSER_TAB=1`).
 
 ## Hosting options (all set up)
 1. **Spare mini PC (primary) + Cloudflare tunnel** → fixed domain **folio.gripe**.
@@ -108,11 +110,10 @@ Goal was a smooth remote browser on the Chromebook. Progression:
 
 ## Current state
 Everything above is built, tested (36 unit tests pass), and pushed to `messqsalgado-max/folio`. The user
-runs it on the mini Dell at **https://folio.gripe**. Latest change: the Browser tab now uses WebSocket
-streaming (works through the tunnel) with a polling fallback.
+runs it on the mini Dell at **https://folio.gripe**. The personal Browser now has its own Chrome process
+and profile, isolated from the Classroom sign-in browser.
 
 ## Likely next steps (open/offered)
 - A **Quality: Smooth ↔ Sharp** toggle for the Browser (bandwidth↔sharpness) — biggest lever for perceived fps.
-- Optionally give Classroom the same WebSocket streaming the Browser now uses.
 - A status page showing connected devices / letting the owner shut down idle sessions.
 - Point `folio.gripe` at Render instead of the PC if the user wants to go PC-free (tradeoffs apply).

@@ -23,8 +23,10 @@ Your projects and Classroom sign-in stay on the PC between runs. If the PC is us
 **setup-domain.bat** once. It signs you in to Cloudflare (a browser opens — pick your domain and Authorize),
 creates a tunnel and points your domain at Folio. After that, Folio is always at `https://yourdomain`.
 
-Optional **Browser** tab — a general web browser running on the PC, for your own personal devices: set
-`FOLIO_BROWSER_TAB=1` in folio.env. It's off by default. Not for getting around a school device's filter.
+Optional **Browser** tab — a personal browser running on the PC with a separate Chrome session and saved
+sign-in from Classroom: set `FOLIO_BROWSER_TAB=1` in folio.env. It's off by default and intended for
+personal devices, not for getting around a school device's filter. It launches independently and uses the
+`FOLIO_CR_IDLE` timeout before closing an idle session.
 
 ## Full Folio with Classroom: GitHub Codespaces (free)
 

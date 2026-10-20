@@ -55,8 +55,8 @@
     return p;
   }})};
 
-  /* ---- Live view of the server's browser: you see it, tap it and type into it; Folio drives it too.
-         One factory, two uses: Classroom (base /api/cr) and the optional personal Browser (/api/web). ---- */
+  /* ---- Shared live-view plumbing. Classroom sign-in and personal browsing have separate panels,
+         endpoints, Chrome processes, and profiles; only the input/rendering mechanics are shared. ---- */
   let liveCssDone = false;
   function liveCss() {
     if (liveCssDone) return; liveCssDone = true;
@@ -88,7 +88,7 @@
     document.head.appendChild(css);
   }
 
-  function makeLive(cfg) {  // cfg: {id, base, label, address}
+  function makeLivePanel(cfg) {  // private panel mechanics; each feature owns an independent instance
     const L = {el: null, on: false, fast: 0, idle: 0};
     L.build = function () {
       liveCss();
@@ -243,12 +243,19 @@
     return L;
   }
 
-  const LiveCR = makeLive({id: "live", base: "/api/cr", address: false,
-    label: "Classroom on Folio's server. Sign in yourself if Google asks."});
-  const LiveWeb = makeLive({id: "liveweb", base: "/api/web", address: true, ws: true, wsPath: "/ws/web",
-    label: "A browser running on your PC."});
+  function makeClassroomSigninBrowser() {
+    return makeLivePanel({id: "live", base: "/api/cr", address: false,
+      label: "Classroom sign-in browser. Sign in yourself if Google asks."});
+  }
+  function makePersonalBrowser() {
+    return makeLivePanel({id: "liveweb", base: "/api/web", address: true, ws: true, wsPath: "/ws/web",
+      label: "Personal browser. Its session is separate from Classroom."});
+  }
+  const LiveCR = makeClassroomSigninBrowser();
+  const LiveWeb = makePersonalBrowser();
   window.FolioLive = LiveCR;
-  window.FolioWeb = LiveWeb;
+  window.FolioBrowser = LiveWeb;
+  window.FolioWeb = LiveWeb;  // compatibility alias for existing integrations
   if (window.FOLIO_WEBTAB) {
     const openWeb = () => LiveWeb.open();
     const nb = document.querySelector('.nav button[data-v="browser"]'); if (nb) nb.addEventListener("click", openWeb);
