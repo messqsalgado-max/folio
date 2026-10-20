@@ -160,8 +160,10 @@
       let n = 0;
       while (this.on) {
         try {
-          const b = await fetch("/api/cr/frame?t=" + Date.now(), {credentials: "same-origin"}).then(r => r.ok ? r.blob() : null);
-          if (b) { const u = URL.createObjectURL(b), old = this.img.src; this.img.src = u; if (old.startsWith("blob:")) URL.revokeObjectURL(old); }
+          const first = !this.img.src || !this.img.src.startsWith("blob:");
+          const res = await fetch("/api/cr/frame?t=" + Date.now() + (first ? "&f=1" : ""), {credentials: "same-origin"});
+          const b = res.status === 200 ? await res.blob() : null;  // 204 = unchanged, keep the current frame
+          if (b && b.size) { const u = URL.createObjectURL(b), old = this.img.src; this.img.src = u; if (old.startsWith("blob:")) URL.revokeObjectURL(old); }
           if (n++ % 5 === 0) fetch("/api/cr/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
             this.title.textContent = i.title || i.url || ""; }).catch(() => {});
         } catch (e) {}

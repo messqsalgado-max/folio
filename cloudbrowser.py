@@ -170,14 +170,22 @@ class Browser:
     # ---------------------------------------------------------------- the live view
     def frame(self):
         """JPEG of what the main page shows right now. Google's sign-in gets a phone-sized page so it's
-        readable on the phone; everything else stays desktop-sized, like the Windows app's window."""
+        readable on the phone; everything else stays desktop-sized, like the Windows app's window.
+        A short cache means a burst of polls reuses one screenshot instead of taxing the CPU each time."""
+        now = time.time()
+        cached = getattr(self, "_fcache", None)
+        if cached and now - cached[0] < 0.18:
+            return cached[1]
+
         def go():
             p = self._page("main")
             size = SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW
             if p.viewport_size != size:
                 p.set_viewport_size(size)
-            return p.screenshot(type="jpeg", quality=60)
-        return self.run(go, timeout=20)
+            return p.screenshot(type="jpeg", quality=55)
+        img = self.run(go, timeout=20)
+        self._fcache = (time.time(), img)
+        return img
 
     def info(self):
         def go():

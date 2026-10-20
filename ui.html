@@ -607,6 +607,7 @@ details{border-radius:14px;background:var(--glass-3);border:1px dashed var(--lin
       <button data-v="drive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8.5 3h7l6 10.5-3.5 6h-12L2.5 13.5z"/><path d="M8.5 3l6 10.5h7M2.5 13.5h12l-3.5 6"/></svg>Google Drive</button>
       <button data-v="classroom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="13" rx="2"/><circle cx="12" cy="10.5" r="2.2"/><path d="M8 18c.6-2.2 2.1-3.3 4-3.3s3.4 1.1 4 3.3"/></svg>Classroom</button>
       <button data-v="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Library</button>
+      <button data-v="games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4"/><circle cx="15.5" cy="11" r="1.1"/><circle cx="18" cy="13.5" r="1.1"/></svg>Games</button>
       <button data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
     </nav>
     <div class="spacer"></div>
@@ -774,6 +775,7 @@ details{border-radius:14px;background:var(--glass-3);border:1px dashed var(--lin
             <button class="btn" id="cancel">Cancel</button>
           </div>
           <div class="bar"><i></i></div>
+          <button class="ghost" id="p-games" style="margin:4px 0 2px">🎮 Play a game while you wait →</button>
           <div class="log" id="log"></div>
         </div>
       </div>
@@ -1022,8 +1024,39 @@ details{border-radius:14px;background:var(--glass-3);border:1px dashed var(--lin
         </div>
       </div>
     </section>
+
+    <!-- GAMES -->
+    <section class="view" id="v-games">
+      <div class="res-top"><div><h1>Games</h1><div class="sub">Take a break — anything you're generating keeps running in the background.</div></div></div>
+      <div class="gm-pick">
+        <button class="btn acc" data-game="t2048">2048</button>
+        <button class="btn" data-game="snake">Snake</button>
+        <button class="btn" data-game="memory">Memory</button>
+        <span class="gm-score" id="gm-score"></span>
+        <button class="btn gm-again" id="gm-again">New game</button>
+      </div>
+      <div class="gm-stage"><canvas id="gm-canvas" width="420" height="420"></canvas></div>
+      <div class="gm-hint" id="gm-hint"></div>
+      <div class="gm-dpad" id="gm-dpad" aria-hidden="true">
+        <button data-d="up">▲</button>
+        <div><button data-d="left">◀</button><button data-d="down">▼</button><button data-d="right">▶</button></div>
+      </div>
+    </section>
   </main>
 </div>
+<style>
+#v-games .gm-pick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+#v-games .gm-score{font-weight:700;margin-left:auto}
+#v-games .gm-stage{display:flex;justify-content:center}
+#gm-canvas{width:min(92vw,420px);height:auto;aspect-ratio:1;border-radius:18px;background:var(--glass-2);
+  box-shadow:var(--shadow);touch-action:none}
+#v-games .gm-hint{text-align:center;color:var(--muted);font-size:13px;margin-top:12px}
+#v-games .gm-dpad{display:none;margin:14px auto 0;width:200px;text-align:center}
+#v-games .gm-dpad>div{display:flex;gap:8px;justify-content:center;margin-top:8px}
+#v-games .gm-dpad button{all:unset;cursor:pointer;width:58px;height:48px;display:inline-grid;place-items:center;
+  font-size:20px;border-radius:14px;background:var(--glass-2);border:1px solid var(--line2);box-shadow:var(--shadow)}
+@media (hover:none){#v-games .gm-dpad{display:block}}
+</style>
 <div class="toast" id="toast"></div>
 <div class="palette thoughts" id="thoughts" aria-hidden="true">
   <div class="pal-box th-box">
@@ -1702,6 +1735,90 @@ document.addEventListener("keydown",e=>{
 });
 
 window.addEventListener("pywebviewready",async()=>{applySettings(await api().get_settings());loadHome()});
+
+/* ================= Games (a break while things generate) ================= */
+(function(){
+  const cv=document.getElementById('gm-canvas'); if(!cv) return;
+  const ctx=cv.getContext('2d'); const S=cv.width;
+  const scoreEl=document.getElementById('gm-score'), hintEl=document.getElementById('gm-hint'), dpad=document.getElementById('gm-dpad');
+  let cur=null, name='t2048';
+  const save=(k,v)=>{try{localStorage.setItem('folio-'+k,v)}catch(e){}};
+  const load=k=>{try{return localStorage.getItem('folio-'+k)}catch(e){return null}};
+  const setScore=t=>scoreEl.textContent=t||'', setHint=t=>hintEl.textContent=t||'';
+  const rr=(x,y,w,h,r)=>{ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();};
+
+  function make2048(){
+    let g,score,over,won;
+    const COL={0:'#2a2f45',2:'#3b4a6b',4:'#3f5a8a',8:'#4f7bd0',16:'#6a5bd0',32:'#8a5bd0',64:'#c05bd0',128:'#d08a3b',256:'#d0b03b',512:'#5bd08a',1024:'#3bd0c0',2048:'#3bd06a'};
+    const spawn=()=>{const e=[];for(let i=0;i<16;i++)if(!g[i])e.push(i);if(e.length)g[e[Math.random()*e.length|0]]=Math.random()<.9?2:4;};
+    function start(){g=Array(16).fill(0);score=0;over=won=false;spawn();spawn();draw();}
+    function line(a){a=a.filter(x=>x);for(let i=0;i<a.length-1;i++)if(a[i]===a[i+1]){a[i]*=2;score+=a[i];if(a[i]===2048)won=true;a.splice(i+1,1);}while(a.length<4)a.push(0);return a;}
+    function moves(){for(let i=0;i<16;i++){if(!g[i])return true;const r=i/4|0,c=i%4;if(c<3&&g[i]===g[i+1])return true;if(r<3&&g[i]===g[i+4])return true;}return false;}
+    function key(d){if(over)return;let moved=false;const get=(r,c)=>g[r*4+c],set=(r,c,v)=>g[r*4+c]=v;
+      for(let i=0;i<4;i++){let a=[];for(let j=0;j<4;j++)a.push(d==='left'||d==='right'?get(i,j):get(j,i));
+        if(d==='right'||d==='down')a.reverse();const b=line(a.slice());if(d==='right'||d==='down')b.reverse();
+        for(let j=0;j<4;j++){const v=b[j];if(d==='left'||d==='right'){if(get(i,j)!==v){moved=true;set(i,j,v);}}else if(get(j,i)!==v){moved=true;set(j,i,v);}}}
+      if(moved){spawn();if(score>+(load('2048best')||0))save('2048best',score);if(!moves())over=true;}draw();}
+    function draw(){ctx.clearRect(0,0,S,S);const p=12,cell=(S-p*5)/4;
+      for(let i=0;i<16;i++){const r=i/4|0,c=i%4,x=p+c*(cell+p),y=p+r*(cell+p),v=g[i];
+        ctx.fillStyle=COL[v]||'#3bd06a';rr(x,y,cell,cell,12);
+        if(v){ctx.fillStyle='#fff';ctx.font='bold '+(v>=1000?34:42)+'px -apple-system,system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(v,x+cell/2,y+cell/2+2);}}
+      setScore('Score '+score+'  ·  Best '+Math.max(score,+(load('2048best')||0)));
+      setHint(over?'Game over — tap New game.':(won?'You hit 2048! Keep going.':'Swipe or use arrow keys. Merge matching tiles.'));}
+    return {start,key};
+  }
+
+  function makeSnake(){
+    const N=17,cell=S/N;let s,dir,nd,food,score,dead,timer;
+    const place=()=>{while(true){food={x:Math.random()*N|0,y:Math.random()*N|0};if(!s.some(p=>p.x===food.x&&p.y===food.y))return;}};
+    function stop(){if(timer){clearInterval(timer);timer=null;}}
+    function start(){s=[{x:8,y:8}];dir=nd={x:1,y:0};score=0;dead=false;place();stop();timer=setInterval(step,130);draw();}
+    function key(d){const m={up:{x:0,y:-1},down:{x:0,y:1},left:{x:-1,y:0},right:{x:1,y:0}}[d];if(!m||(m.x===-dir.x&&m.y===-dir.y))return;nd=m;}
+    function step(){if(dead)return;dir=nd;const h={x:s[0].x+dir.x,y:s[0].y+dir.y};
+      if(h.x<0||h.y<0||h.x>=N||h.y>=N||s.some(p=>p.x===h.x&&p.y===h.y)){dead=true;stop();if(score>+(load('snakebest')||0))save('snakebest',score);draw();return;}
+      s.unshift(h);if(h.x===food.x&&h.y===food.y){score++;place();}else s.pop();draw();}
+    function draw(){ctx.clearRect(0,0,S,S);ctx.fillStyle='#d0533b';rr(food.x*cell+3,food.y*cell+3,cell-6,cell-6,6);
+      s.forEach((p,i)=>{ctx.fillStyle=i?'#4f7bd0':'#6ab0ff';rr(p.x*cell+2,p.y*cell+2,cell-4,cell-4,6);});
+      setScore('Score '+score+'  ·  Best '+Math.max(score,+(load('snakebest')||0)));
+      setHint(dead?'Crashed! Tap New game.':'Arrow keys, swipe, or the pad. Eat the red dots.');}
+    return {start,key,stop};
+  }
+
+  function makeMemory(){
+    const EM=['🚀','🌟','🎧','🍕','🐙','🌈','⚡','🎲'];let cards,flip,matched,moves,lock;
+    function start(){const d=EM.concat(EM).sort(()=>Math.random()-.5);cards=d.map(e=>({e,up:false,done:false}));flip=[];matched=0;moves=0;lock=false;draw();}
+    function tap(x,y){if(lock)return;const p=18,cell=(S-p*5)/4,c=Math.min(3,Math.max(0,(x-p)/(cell+p)|0)),r=Math.min(3,Math.max(0,(y-p)/(cell+p)|0)),i=r*4+c;
+      const card=cards[i];if(!card||card.up||card.done)return;card.up=true;flip.push(i);draw();
+      if(flip.length===2){moves++;lock=true;const a=flip[0],b=flip[1];
+        if(cards[a].e===cards[b].e){cards[a].done=cards[b].done=true;matched++;flip=[];lock=false;draw();if(matched===EM.length)setHint('Solved in '+moves+' moves! 🎉');}
+        else setTimeout(()=>{cards[a].up=cards[b].up=false;flip=[];lock=false;draw();},700);}}
+    function draw(){ctx.clearRect(0,0,S,S);const p=18,cell=(S-p*5)/4;
+      cards.forEach((card,i)=>{const r=i/4|0,c=i%4,x=p+c*(cell+p),y=p+r*(cell+p);
+        ctx.fillStyle=card.done?'#2a4a3a':(card.up?'#3b4a6b':'#2a2f45');rr(x,y,cell,cell,14);
+        if(card.up||card.done){ctx.font='44px -apple-system,system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(card.e,x+cell/2,y+cell/2+2);}});
+      setScore('Moves '+moves);if(matched!==EM.length)setHint('Tap two cards to find the matching pairs.');}
+    return {start,tap};
+  }
+
+  const makers={t2048:make2048,snake:makeSnake,memory:makeMemory};
+  const stop=()=>{if(cur&&cur.stop)cur.stop();};
+  function pick(n){stop();name=n;cur=makers[n]();document.querySelectorAll('#v-games .gm-pick [data-game]').forEach(b=>b.classList.toggle('acc',b.dataset.game===n));cur.start();}
+
+  document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.v==='games'){cur?cur.start():pick(name);} else stop(); }));
+  const pg=document.getElementById('p-games'); if(pg)pg.addEventListener('click',()=>document.querySelector('.nav button[data-v=games]').click());
+  document.querySelectorAll('#v-games .gm-pick [data-game]').forEach(b=>b.addEventListener('click',()=>pick(b.dataset.game)));
+  const again=document.getElementById('gm-again'); if(again)again.addEventListener('click',()=>{if(cur)cur.start();});
+
+  const KD={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right',W:'up',S:'down',A:'left',D:'right'};
+  document.addEventListener('keydown',e=>{const v=document.getElementById('v-games');if(!v||!v.classList.contains('on'))return;const dir=KD[e.key];if(dir&&cur&&cur.key){e.preventDefault();cur.key(dir);}});
+  if(dpad)dpad.addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.d;if(d&&cur&&cur.key)cur.key(d);});
+  let t0=null;
+  cv.addEventListener('pointerdown',e=>{t0={x:e.clientX,y:e.clientY};});
+  cv.addEventListener('pointerup',e=>{if(!t0)return;const dx=e.clientX-t0.x,dy=e.clientY-t0.y,ad=Math.abs(dx),ay=Math.abs(dy);
+    if(ad<10&&ay<10){if(cur&&cur.tap){const rct=cv.getBoundingClientRect(),k=S/rct.width;cur.tap((e.clientX-rct.left)*k,(e.clientY-rct.top)*k);}}
+    else if(cur&&cur.key){cur.key(ad>ay?(dx>0?'right':'left'):(dy>0?'down':'up'));}
+    t0=null;});
+})();
 </script>
 </body>
 </html>

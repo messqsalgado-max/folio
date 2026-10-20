@@ -13,6 +13,7 @@ Settings come from environment variables (secrets on the host):
                      the student signs in through the live view). Set up for GitHub Codespaces in .devcontainer
 """
 
+import hashlib
 import hmac
 import json
 import os
@@ -310,12 +311,20 @@ if CLOUD_CR:
     threading.Thread(target=_cr_watchdog, daemon=True).start()
 
 
+_frame_seen = {"hash": None}
+
+
 @app.get("/api/cr/frame")
 def cr_frame():
     b = _browser()
     if not b.is_running():
         abort(409)
-    r = Response(b.frame(), mimetype="image/jpeg")
+    img = b.frame()
+    h = hashlib.md5(img).hexdigest()
+    if h == _frame_seen["hash"] and request.args.get("f") != "1":
+        return ("", 204)  # nothing changed since the last frame — save the bandwidth
+    _frame_seen["hash"] = h
+    r = Response(img, mimetype="image/jpeg")
     r.headers["Cache-Control"] = "no-store"
     return r
 
