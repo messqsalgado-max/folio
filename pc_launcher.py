@@ -24,6 +24,10 @@ ENV_FILE = os.path.join(HERE, "folio.env")
 CF = os.path.join(HERE, "cloudflared.exe")
 CF_URL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
 PORT = os.environ.get("PORT") or "7860"
+# cloudflared defaults to QUIC (UDP), which many home routers/ISPs throttle or drop — that shows up as
+# "no recent network activity" timeouts and constant reconnects, so the link goes down (ERR_CONNECTION).
+# HTTP/2 runs over TCP and stays up on those networks. Override with FOLIO_TUNNEL_PROTOCOL if needed.
+TUNNEL_PROTOCOL = os.environ.get("FOLIO_TUNNEL_PROTOCOL") or "http2"
 
 REPO = "messqsalgado-max/folio"
 ZIP_URL = "https://codeload.github.com/%s/zip/refs/heads/main" % REPO
@@ -222,8 +226,8 @@ def run_domain_tunnel(web, host):
         while web.poll() is None:
             say("Starting your tunnel…")
             # Inherit the console so Cloudflare's actual connection or error messages are visible.
-            cf = subprocess.Popen([CF, "tunnel", "--no-autoupdate", "run", "--url",
-                                   "http://127.0.0.1:%s" % PORT, TUNNEL_NAME], cwd=HERE)
+            cf = subprocess.Popen([CF, "tunnel", "--no-autoupdate", "--protocol", TUNNEL_PROTOCOL, "run",
+                                   "--url", "http://127.0.0.1:%s" % PORT, TUNNEL_NAME], cwd=HERE)
             while cf.poll() is None and web.poll() is None:
                 time.sleep(1)
             if web.poll() is not None:
@@ -420,7 +424,8 @@ def main():
     if host and not _domain_ready():
         say("Your domain '%s' isn't set up yet — run setup-domain.bat once. Using a temporary link for now." % host)
     say("Opening the public link…")
-    cf = subprocess.Popen([CF, "tunnel", "--url", "http://127.0.0.1:%s" % PORT, "--no-autoupdate"],
+    cf = subprocess.Popen([CF, "tunnel", "--protocol", TUNNEL_PROTOCOL, "--url",
+                           "http://127.0.0.1:%s" % PORT, "--no-autoupdate"],
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
     shown = False
     try:

@@ -33,6 +33,15 @@ LEAN_ARGS = ["--disable-gpu", "--disable-extensions", "--disable-background-netw
              "--renderer-process-limit=1", "--js-flags=--max-old-space-size=256", "--window-size=1100,820"]
 
 
+def _is_dead_err(e):
+    """True when the error means Chrome / its context / a tab has crashed or been closed, so the
+    browser can't be used until it's relaunched (Playwright raises TargetClosedError for these)."""
+    s = (type(e).__name__ + " " + str(e)).lower()
+    return ("targetclosed" in s or "has been closed" in s or "browser has been closed" in s
+            or "target page, context or browser has been closed" in s or "crashed" in s
+            or "connection closed" in s or "browser closed" in s)
+
+
 class _Events:
     """Stands in for pywebview's window.events (closed += handler; loaded.wait())."""
 
@@ -57,6 +66,7 @@ class Browser:
         self.pages = {}
         self.sessions = {}
         self._live_viewports = {}
+        self._dead = False  # set when Chrome/the context has crashed or closed, so start() rebuilds it
         self.lock = threading.Lock()
 
     # ---------------------------------------------------------------- worker thread
@@ -128,8 +138,20 @@ class Browser:
 
     def start(self):
         with self.lock:
-            if self.thread and self.thread.is_alive() and self.ctx:
+            if self.thread and self.thread.is_alive() and self.ctx and not self._dead:
                 return
+            # a crashed/closed browser (or an exited worker) must be torn down before relaunching
+            stale = self.thread if (self._dead or (self.thread and not self.thread.is_alive())) else None
+        if stale is not None and stale.is_alive():
+            try:
+                self.jobs.put(None)   # tell the dead worker to exit so a fresh Chrome can take over
+                stale.join(timeout=10)
+            except Exception:
+                pass
+        with self.lock:
+            if self.thread and self.thread.is_alive() and self.ctx and not self._dead:
+                return
+            self._dead, self.ctx = False, None
             os.makedirs(self.profile, exist_ok=True)
             self.error, self.pages, self.sessions, ready = None, {}, {}, threading.Event()
             self.thread = threading.Thread(target=self._loop, args=(ready,), daemon=True)
@@ -151,7 +173,7 @@ class Browser:
         with self.lock:
             self.thread, self.ctx, self.pages, self.sessions = None, None, {}, {}
 
-    def run(self, fn, timeout=60):
+    def run(self, fn, timeout=60, _retry=True):
         self.start()
         box, done, cancelled = {}, threading.Event(), threading.Event()
         self.jobs.put((fn, box, done, cancelled))
@@ -159,7 +181,11 @@ class Browser:
             cancelled.set()
             raise RuntimeError("The browser didn't answer.")
         if "e" in box:
-            raise box["e"]
+            e = box["e"]
+            if _retry and _is_dead_err(e):   # Chrome crashed/closed → relaunch once and retry, no 500 flood
+                self._dead = True
+                return self.run(fn, timeout, _retry=False)
+            raise e
         return box.get("r")
 
     def is_running(self):
@@ -290,8 +316,10 @@ class Window:
         def go():
             try:
                 self.b._page(self.name).goto(url, wait_until="commit", timeout=30000)
-            except Exception:
-                pass
+            except Exception as e:
+                if _is_dead_err(e):   # let a crashed browser bubble up so run() relaunches and retries this nav
+                    raise
+                # ignore ordinary navigation errors (redirects, aborted loads, etc.)
         self.b.run(go, timeout=40)
 
     def get_current_url(self):
