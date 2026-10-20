@@ -239,8 +239,8 @@ class Browser:
                 p.goto(classroom.TODO["assigned"] if tab == "main" else "https://www.google.com", wait_until="commit")
         self.run(go, timeout=40)
 
-    def browse(self, url, tab="web"):
-        """Open a URL in a general browsing tab (a personal remote browser, separate from Classroom)."""
+    def browse(self, url, tab="main"):
+        """Open a URL in this browser instance's primary tab."""
         url = (url or "").strip()
         if not re.match(r"^https?://", url):
             if "." in url.split("/")[0] and " " not in url:
