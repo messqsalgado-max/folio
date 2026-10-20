@@ -73,7 +73,7 @@
 .flive .bar .url{flex:1;min-width:120px;padding:9px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.15);
   background:rgba(10,12,22,.6);color:#EEF0F8;font-size:15px}
 .flive .scr{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;align-items:flex-start;justify-content:center}
-.flive img{width:100%;max-width:min(100%,1100px);height:auto;touch-action:pan-x pinch-zoom;user-select:none;-webkit-user-select:none;display:block}
+.flive img{width:100%;max-width:min(100%,1600px);height:auto;touch-action:pan-x pinch-zoom;user-select:none;-webkit-user-select:none;display:block}
 .flive img.z{width:250%;max-width:none}.flive .scr.z{justify-content:flex-start}
 .flive .keys{display:flex;gap:6px;padding:8px 10px;align-items:center}
 .flive .keys input{flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.15);
@@ -83,13 +83,27 @@
 .flive .hint .kb-only,.flive.kb .hint .touch-only{display:none}.flive.kb .hint .kb-only{display:inline}
 .flive .sink{position:fixed;left:-200px;top:0;width:100px;height:40px;opacity:0}
 .flive.kb .keys{display:none}.flive.kb .scr{align-items:center}
-.flive.kb img{width:auto;max-width:100%;max-height:calc(100vh - 110px);cursor:default}
+.flive.kb img{width:auto;max-width:100%;max-height:calc(100vh - 96px);cursor:default}
 .flive.kb img.z{max-height:none;width:200%;max-width:none}`;
     document.head.appendChild(css);
   }
 
   function makeLivePanel(cfg) {  // private panel mechanics; each feature owns an independent instance
-    const L = {el: null, on: false, fast: 0, idle: 0};
+    const L = {el: null, on: false, fast: 0, idle: 0, viewportResize: null};
+    L.syncViewport = function () {
+      const mobile = window.innerWidth <= 760;
+      const size = mobile ? {width: 720, height: 1280} : {
+        width: Math.min(1600, Math.max(800, window.innerWidth)),
+        height: Math.min(1100, Math.max(600, window.innerHeight))
+      };
+      const body = JSON.stringify({kind: "viewport", ...size});
+      if (L.ws && L.ws.readyState === 1) {
+        try { L.ws.send(body); } catch (e) {}
+      } else if (!L.useWs || !L.ws || L.ws.readyState > 1) {
+        fetch(cfg.base + "/input", {method: "POST", credentials: "same-origin",
+          headers: {"Content-Type": "application/json"}, body}).catch(() => {});
+      }
+    };
     L.build = function () {
       liveCss();
       const d = document.createElement("div");
@@ -190,6 +204,9 @@
           if (typeof e.data === "string") { try { const i = JSON.parse(e.data); if (L.title) L.title.textContent = i.title || i.url || ""; if (L.urlBar && document.activeElement !== L.urlBar) L.urlBar.value = i.url || ""; } catch (x) {} return; }
           got = true; const u = URL.createObjectURL(e.data), old = L.img.src; L.img.src = u; if ((old || "").startsWith("blob:")) URL.revokeObjectURL(old);
         };
+        L.viewportResize = L.syncViewport;
+        window.addEventListener("resize", L.viewportResize, {passive: true});
+        ws.addEventListener("open", L.viewportResize, {once: true});
         ws.onclose = () => { if (L.useWs && L.on) L.fallback(); };
         ws.onerror = () => { if (L.useWs && L.on) L.fallback(); };
         setTimeout(() => { if (L.on && L.useWs && !got) L.fallback(); }, 7000);  // no frames in time → polling
@@ -199,6 +216,7 @@
       L.useWs = false;
       try { L.ws && L.ws.close(); } catch (e) {}
       L.ws = null; L.fast = 8; L.idle = 0;
+      L.syncViewport();
     };
     L.open = function () {
       if (!L.el) L.build();
@@ -216,7 +234,9 @@
         }).catch(() => {});
       }
     };
-    L.close = function () { L.on = false; L.el && L.el.classList.remove("on"); try { L.ws && L.ws.close(); } catch (e) {} L.ws = null; };
+    L.close = function () { L.on = false; L.el && L.el.classList.remove("on");
+      if (L.viewportResize) window.removeEventListener("resize", L.viewportResize); L.viewportResize = null;
+      try { L.ws && L.ws.close(); } catch (e) {} L.ws = null; };
     L.kick = function () { L.fast = 8; L.idle = 0; };
     L.loop = async function () {
       let n = 0;

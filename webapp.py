@@ -459,7 +459,9 @@ def cr_input():
 def _cr_do(b, d):
     """Apply input from the Classroom live view to its isolated browser."""
     kind = d.get("kind")
-    if kind == "tap":
+    if kind == "viewport":
+        b.set_live_viewport(d.get("width", 720), d.get("height", 1280))
+    elif kind == "tap":
         b.tap(float(d["x"]), float(d["y"]))
     elif kind == "scroll":
         b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]))
@@ -545,7 +547,9 @@ def web_info():
 def _web_do(b, d):
     """Apply input to the separate personal-browser session."""
     kind = d.get("kind")
-    if kind == "tap":
+    if kind == "viewport":
+        b.set_live_viewport(d.get("width", 1100), d.get("height", 820))
+    elif kind == "tap":
         b.tap(float(d["x"]), float(d["y"]))
     elif kind == "scroll":
         b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]))

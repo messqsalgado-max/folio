@@ -48,7 +48,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 
 /* main */
 main{overflow:auto;position:relative}
-.view{display:none;padding:30px 36px 40px;max-width:1240px;margin:0 auto}
+.view{display:none;width:100%;padding:30px 36px 40px;max-width:1640px;margin:0 auto}
 .view.on{display:block;animation:fade .25s ease}
 @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;gap:16px}
@@ -603,6 +603,12 @@ main{scroll-behavior:smooth}
   .aurora{inset:0;overflow:hidden;filter:blur(50px) saturate(140%)}  /* nothing wider than the screen, or phones zoom out */
   .aurora i{transform-origin:center}
   .dock{bottom:calc(96px + env(safe-area-inset-bottom))}
+}
+
+@media (min-width: 761px) and (max-width: 1050px){
+  .app{grid-template-columns:204px minmax(0,1fr)}
+  .view{padding:24px 24px 36px}
+  .grid,.co-grid,.sl-ed-grid{grid-template-columns:minmax(0,1fr)!important}
 }
 </style>
 

@@ -56,6 +56,7 @@ class Browser:
         self.pw = None
         self.pages = {}
         self.sessions = {}
+        self._live_viewports = {}
         self.lock = threading.Lock()
 
     # ---------------------------------------------------------------- worker thread
@@ -177,8 +178,8 @@ class Browser:
 
     # ---------------------------------------------------------------- the live view (any tab)
     def frame(self, tab="main", quality=55, cache_ttl=None):
-        """JPEG of what `tab` shows right now. Google's sign-in gets a sharp portrait viewport; other
-        pages stay desktop-sized. Optional cache controls let live panels request fresh frames."""
+        """JPEG of the current tab. A connected live panel can set its own viewport; otherwise Google
+        sign-in uses the portrait default and other pages use the desktop default."""
         now = time.time()
         cache = self.__dict__.setdefault("_fcache", {})
         key = (tab, quality)
@@ -189,7 +190,7 @@ class Browser:
 
         def go():
             p = self._page(tab)
-            size = SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW
+            size = self._live_viewports.get(tab) or (SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW)
             if p.viewport_size != size:
                 p.set_viewport_size(size)
             return p.screenshot(type="jpeg", quality=quality)
@@ -201,11 +202,22 @@ class Browser:
         """A fresh screenshot with no cache — for the continuous MJPEG stream (lower quality = faster)."""
         def go():
             p = self._page(tab)
-            size = SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW
+            size = self._live_viewports.get(tab) or (SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW)
             if p.viewport_size != size:
                 p.set_viewport_size(size)
             return p.screenshot(type="jpeg", quality=quality)
         return self.run(go, timeout=20)
+
+    def set_live_viewport(self, width, height, tab="main"):
+        """Match the remote live view's screen shape, bounded to keep captures manageable."""
+        size = {"width": max(640, min(1920, int(width))),
+                "height": max(480, min(1280, int(height)))}
+        def go():
+            self._live_viewports[tab] = size
+            p = self._page(tab)
+            if p.viewport_size != size:
+                p.set_viewport_size(size)
+        self.run(go, timeout=20)
 
     def info(self, tab="main"):
         def go():
