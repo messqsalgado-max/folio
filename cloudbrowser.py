@@ -72,6 +72,8 @@ class Browser:
                     args += ["--single-process", "--no-zygote"]
             kw = dict(user_data_dir=PROFILE, viewport=VIEW, user_agent=UA, locale="en-US",
                       headless=headless, ignore_default_args=["--enable-automation"], args=args)
+            # how long one screenshot is reused: short on a real PC (smooth), longer on a tiny server (CPU)
+            self._frame_ttl = int(os.environ.get("FOLIO_FRAME_MS") or (200 if headless else 55)) / 1000.0
             channel = os.environ.get("FOLIO_BROWSER_CHANNEL") or ("msedge" if os.name == "nt" else "chrome")
             if channel == "none":  # use Playwright's bundled Chromium (what the Docker image installs)
                 channel = None
@@ -174,7 +176,7 @@ class Browser:
         A short cache means a burst of polls reuses one screenshot instead of taxing the CPU each time."""
         now = time.time()
         cached = getattr(self, "_fcache", None)
-        if cached and now - cached[0] < 0.18:
+        if cached and now - cached[0] < getattr(self, "_frame_ttl", 0.1):
             return cached[1]
 
         def go():

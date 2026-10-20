@@ -948,7 +948,7 @@ details{border-radius:14px;background:var(--glass-3);border:1px dashed var(--lin
     <!-- CLASSROOM -->
     <section class="view" id="v-classroom">
       <div class="head">
-        <div><h1>Classroom</h1><div class="sub">See what's due and start a project from any assignment. Folio only writes into your existing docs when you ask, and never turns anything in.</div></div>
+        <div><h1>Classroom</h1><div class="sub">See what's due, then fill in the file already attached to the assignment. Folio drafts the work and writes it into your existing Google Doc or Slides — it never makes a new file and never turns anything in.</div></div>
         <div style="display:flex;gap:8px"><button class="btn" id="cr-open">Open Classroom window</button><button class="btn acc" id="cr-load">Load my assignments</button></div>
       </div>
       <div class="card cr-help" id="cr-help">
@@ -957,7 +957,7 @@ details{border-radius:14px;background:var(--glass-3);border:1px dashed var(--lin
           <ol>
             <li>Click <b>Open Classroom window</b>. Sign in with your school account there (only the first time; Folio never sees your password).</li>
             <li>Click <b>Load my assignments</b>. Folio reads your To-do list.</li>
-            <li>Click <b>Start project</b> on an assignment. Folio reads its instructions, rubric and your teacher's comments, and fills in a new project for you to check.</li>
+            <li>Click <b>Start project</b> on an assignment. Folio reads its instructions, rubric and your teacher's comments and drafts the work — then, on the next screen, writes it into the file already attached to that assignment (your Google Doc or Slides). You check it and turn it in yourself.</li>
           </ol>
         </div>
       </div>
@@ -1599,19 +1599,27 @@ function handIn(p){
   const n=(c.edits||[]).reduce((a,e)=>a+(e.written||0),0);
   $("#hi-meta").textContent=[c.points,c.due?"due "+c.due:"",n?`${n} addition${n>1?"s":""} written so far`:""].filter(Boolean).join(" · ");
   HI.docs=[];HI.doc=null;HI.edits=[];
-  $("#hi-files").innerHTML='<button class="btn" id="hi-load">Show my files in this assignment</button>';$("#hi-load").onclick=hiLoad;
+  $("#hi-files").innerHTML='<div class="hint" style="text-align:left">Finding the file attached to this assignment…</div>';
   $("#hi-draft").style.display="none";$("#hi-edits").innerHTML="";$("#hi-review").style.display="none";$("#hi-status").textContent="";
+  hiLoad(true);  // auto-surface the existing file so editing it is the obvious next step
 }
-async function hiLoad(){
+function hiSelect(d,deck){HI.doc=d;$("#hi-edits").innerHTML="";$("#hi-review").style.display="none";
+  $("#hi-draft").style.display=deck?"none":"";if(deck)hiDeck();}
+async function hiLoad(auto){
   $("#hi-status").textContent="Opening the assignment in the Classroom window…";
   const r=await api().cr_docs(S.current.folder); $("#hi-status").textContent="";
-  if(r&&r.error)return toast(r.error,true);
+  if(r&&r.error){$("#hi-files").innerHTML=`<button class="btn" id="hi-load">Try again</button>`;$("#hi-load").onclick=()=>hiLoad(true);return toast(r.error,true);}
   HI.docs=r.docs||[]; const fl=$("#hi-files"); fl.innerHTML="";
-  if(!HI.docs.length){fl.innerHTML='<div class="hint" style="text-align:left">No files under Your work yet. Folio only edits files that are already there.</div>';return}
+  if(!HI.docs.length){fl.innerHTML='<div class="hint" style="text-align:left">No file under Your work yet for this assignment. Folio only edits a file that\'s already attached — attach your doc or deck in Classroom first, then reopen this.</div><button class="btn" id="hi-load" style="margin-top:8px">Check again</button>';$("#hi-load").onclick=()=>hiLoad(true);return}
+  const editable=HI.docs.filter(d=>/Docs|Slides/.test(d.kind));
   HI.docs.forEach((d,i)=>{const deck=/Slides/.test(d.kind), ok=deck||/Docs/.test(d.kind);const l=document.createElement("label");l.className="chk"+(ok?"":" dis");
     l.innerHTML=`<input type="radio" name="hi-doc" ${ok?"":"disabled"}><b>${esc(d.name)}</b><small>${ok?(deck?"add slides to it":"fill it in"):"can't edit "+esc(d.kind)+" yet"}</small>`;
-    l.querySelector("input").onchange=()=>{HI.doc=d;$("#hi-edits").innerHTML="";$("#hi-review").style.display="none";
-      $("#hi-draft").style.display=deck?"none":"";if(deck)hiDeck()};fl.appendChild(l)});
+    l.querySelector("input").onchange=()=>hiSelect(d,deck);fl.appendChild(l)});
+  if(auto&&editable.length===1){ // one file attached: pick it so editing it is one step away
+    const d=editable[0],deck=/Slides/.test(d.kind);
+    const inp=[...fl.querySelectorAll('input:not([disabled])')][0]; if(inp)inp.checked=true;
+    hiSelect(d,deck);
+  }
 }
 // Slides deck: pick which project slides to add to the end of it
 function hiDeck(){

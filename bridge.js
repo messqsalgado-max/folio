@@ -153,21 +153,28 @@
       };
       this.img = img; this.title = title;
     },
-    open() { if (!this.el) this.build(); this.el.classList.add("on"); if (this.el.classList.contains("kb")) this.sink.focus(); if (!this.on) { this.on = true; this.loop(); } },
+    open() { if (!this.el) this.build(); this.el.classList.add("on"); if (this.el.classList.contains("kb")) this.sink.focus(); if (!this.on) { this.on = true; this.fast = 0; this.idle = 0; this.loop(); } },
     close() { this.on = false; this.el && this.el.classList.remove("on"); },
-    kick() { this.fast = 4; },
+    kick() { this.fast = 8; this.idle = 0; },  // after you click/type, run smooth for a moment
     async loop() {
       let n = 0;
       while (this.on) {
+        let changed = false;
         try {
           const first = !this.img.src || !this.img.src.startsWith("blob:");
           const res = await fetch("/api/cr/frame?t=" + Date.now() + (first ? "&f=1" : ""), {credentials: "same-origin"});
-          const b = res.status === 200 ? await res.blob() : null;  // 204 = unchanged, keep the current frame
-          if (b && b.size) { const u = URL.createObjectURL(b), old = this.img.src; this.img.src = u; if (old.startsWith("blob:")) URL.revokeObjectURL(old); }
-          if (n++ % 5 === 0) fetch("/api/cr/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
+          if (res.status === 200) {  // 204 = unchanged, keep the current frame
+            const b = await res.blob();
+            if (b && b.size) { changed = true; const u = URL.createObjectURL(b), old = this.img.src; this.img.src = u; if (old.startsWith("blob:")) URL.revokeObjectURL(old); }
+          }
+          if (n++ % 8 === 0) fetch("/api/cr/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
             this.title.textContent = i.title || i.url || ""; }).catch(() => {});
         } catch (e) {}
-        await new Promise(r => setTimeout(r, this.fast > 0 ? (this.fast--, 250) : 700));
+        // smooth while the page moves; ease off when it's still, so a static page costs almost nothing
+        this.idle = changed ? 0 : Math.min(this.idle + 1, 12);
+        let delay = changed ? 70 : Math.min(500, 110 + this.idle * 40);
+        if (this.fast > 0) { this.fast--; delay = 55; }
+        await new Promise(r => setTimeout(r, delay));
       }
     },
   };
