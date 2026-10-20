@@ -48,6 +48,10 @@ FOLIO_HEADLESS=
 # Optional: set to 1 to add a general Browser tab (a web browser running on this PC) for your own
 # personal devices. Leave blank to keep it off. Not for getting around a school device's filter.
 FOLIO_BROWSER_TAB=
+
+# Optional: your own Cloudflare domain for a fixed link (e.g. folio.gripe). Don't type it here by hand —
+# run setup-domain.bat once and it fills this in and sets everything up.
+FOLIO_TUNNEL_HOSTNAME=
 """
 
 
@@ -232,10 +236,64 @@ def set_env_value(key, value):
         f.write("\n".join(out) + "\n")
 
 
+CF_HOME = os.path.join(os.path.expanduser("~"), ".cloudflared")
+TUNNEL_NAME = "folio"
+
+
+def _cf(*args):
+    return subprocess.run([CF] + list(args), capture_output=True, text=True)
+
+
+def _domain_ready():
+    return os.path.isfile(os.path.join(CF_HOME, "cert.pem"))
+
+
+def setup_domain():
+    """One-time: sign in to Cloudflare, make the 'folio' tunnel and point your domain at it."""
+    if not ensure_cloudflared():
+        input("Press Enter to close.")
+        return
+    env = {}
+    if os.path.isfile(ENV_FILE):
+        for line in open(ENV_FILE, encoding="utf-8"):
+            if "=" in line and not line.strip().startswith("#"):
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip()
+    host = env.get("FOLIO_TUNNEL_HOSTNAME") or input("  Your domain (e.g. folio.gripe): ").strip().lower()
+    if not host:
+        say("No domain given.")
+        input("Press Enter to close.")
+        return
+    print()
+    say("A browser will open. Pick the domain '%s' and click Authorize." % host)
+    _cf("tunnel", "login")
+    if not _domain_ready():
+        say("Sign-in didn't finish. Run setup-domain.bat again.")
+        input("Press Enter to close.")
+        return
+    if TUNNEL_NAME not in (_cf("tunnel", "list").stdout or ""):
+        say("Creating the tunnel…")
+        r = _cf("tunnel", "create", TUNNEL_NAME)
+        if r.returncode:
+            say(r.stderr.strip()[:300])
+    say("Pointing %s at Folio…" % host)
+    r = _cf("tunnel", "route", "dns", "--overwrite-dns", TUNNEL_NAME, host)
+    if r.returncode and "already" not in (r.stderr or "").lower():
+        say(r.stderr.strip()[:300])
+    set_env_value("FOLIO_TUNNEL_HOSTNAME", host)
+    print()
+    say("Done! Folio will always be at:  https://%s" % host)
+    say("Start it with start-folio.bat. (DNS can take a few minutes the very first time.)")
+    input("Press Enter to close.")
+
+
 def main():
     if "--update" in sys.argv:
         update()
         input("Press Enter to close.")
+        return
+    if "--setup-domain" in sys.argv:
+        setup_domain()
         return
     if "--enable-browser" in sys.argv or "--disable-browser" in sys.argv:
         on = "--enable-browser" in sys.argv
@@ -275,6 +333,35 @@ def main():
         input("Press Enter to close.")
         return
 
+    host = os.environ.get("FOLIO_TUNNEL_HOSTNAME", "").strip().lower()
+    bar = "=" * 60
+    if host and _domain_ready():
+        # your own domain → a stable link that never changes
+        say("Starting your tunnel…")
+        cf = subprocess.Popen([CF, "tunnel", "--no-autoupdate", "run", "--url",
+                               "http://127.0.0.1:%s" % PORT, TUNNEL_NAME],
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        print("\n" + bar)
+        say("Folio is online at:  https://%s" % host)
+        say("Password: the APP_PASSWORD you put in folio.env")
+        print(bar)
+        say("Keep this window open. Closing it takes Folio offline.\n")
+        try:
+            for line in cf.stdout:
+                if re.search(r"ERR|error|failed", line):
+                    say(line.rstrip()[:200])
+        except KeyboardInterrupt:
+            pass
+        finally:
+            for p in (cf, web):
+                try:
+                    p.terminate()
+                except Exception:
+                    pass
+        return
+
+    if host and not _domain_ready():
+        say("Your domain '%s' isn't set up yet — run setup-domain.bat once. Using a temporary link for now." % host)
     say("Opening the public link…")
     cf = subprocess.Popen([CF, "tunnel", "--url", "http://127.0.0.1:%s" % PORT, "--no-autoupdate"],
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
@@ -285,14 +372,13 @@ def main():
             if m and not shown:
                 shown = True
                 url = m.group(0)
-                bar = "=" * 60
                 print("\n" + bar)
                 say("Folio is online. On your Chromebook, open:")
                 say("  " + url)
                 say("Password: the APP_PASSWORD you put in folio.env")
                 print(bar)
                 say("Keep this window open. Closing it takes Folio offline.")
-                say("The link changes each time you start Folio.\n")
+                say("The link changes each time (set a fixed domain with setup-domain.bat).\n")
     except KeyboardInterrupt:
         pass
     finally:

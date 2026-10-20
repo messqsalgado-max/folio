@@ -15,9 +15,13 @@ install on the Chromebook.
 4. It downloads the tunnel, starts Folio, and prints a link like `https://xxxx.trycloudflare.com`.
    Open that on the Chromebook and sign in with your password.
 
-Keep the window open (closing it takes Folio offline). The link changes each time you start it. Your
-projects and Classroom sign-in stay on the PC between runs. If the PC is usually locked, set
+Keep the window open (closing it takes Folio offline). By default the link changes each time you start it.
+Your projects and Classroom sign-in stay on the PC between runs. If the PC is usually locked, set
 `FOLIO_HEADLESS=1` in folio.env so Chrome runs without a window.
+
+**A fixed link that never changes** (optional): register a domain on Cloudflare, then double-click
+**setup-domain.bat** once. It signs you in to Cloudflare (a browser opens — pick your domain and Authorize),
+creates a tunnel and points your domain at Folio. After that, Folio is always at `https://yourdomain`.
 
 Optional **Browser** tab — a general web browser running on the PC, for your own personal devices: set
 `FOLIO_BROWSER_TAB=1` in folio.env. It's off by default. Not for getting around a school device's filter.
