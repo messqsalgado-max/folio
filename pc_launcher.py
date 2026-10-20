@@ -213,9 +213,36 @@ def wait_up(timeout=90):
     return False
 
 
+def set_env_value(key, value):
+    """Set KEY=value in folio.env (create the file from the template if it's missing)."""
+    if not os.path.isfile(ENV_FILE):
+        with open(ENV_FILE, "w", encoding="utf-8") as f:
+            f.write(TEMPLATE)
+    lines = open(ENV_FILE, encoding="utf-8").read().splitlines()
+    out, found = [], False
+    for ln in lines:
+        if re.match(r"\s*" + re.escape(key) + r"\s*=", ln):
+            out.append("%s=%s" % (key, value))
+            found = True
+        else:
+            out.append(ln)
+    if not found:
+        out.append("%s=%s" % (key, value))
+    with open(ENV_FILE, "w", encoding="utf-8") as f:
+        f.write("\n".join(out) + "\n")
+
+
 def main():
     if "--update" in sys.argv:
         update()
+        input("Press Enter to close.")
+        return
+    if "--enable-browser" in sys.argv or "--disable-browser" in sys.argv:
+        on = "--enable-browser" in sys.argv
+        set_env_value("FOLIO_BROWSER_TAB", "1" if on else "")
+        print()
+        say("The personal Browser tab is now %s." % ("ON" if on else "OFF"))
+        say("Start Folio (start-folio.bat), or if it's already running, close that window and start it again.")
         input("Press Enter to close.")
         return
 
