@@ -215,6 +215,35 @@ def wait_up(timeout=90):
     return False
 
 
+def run_domain_tunnel(web, host):
+    """Keep Folio running locally and restart its fixed-domain tunnel if cloudflared exits."""
+    cf = None
+    try:
+        while web.poll() is None:
+            say("Starting your tunnel…")
+            # Inherit the console so Cloudflare's actual connection or error messages are visible.
+            cf = subprocess.Popen([CF, "tunnel", "--no-autoupdate", "run", "--url",
+                                   "http://127.0.0.1:%s" % PORT, TUNNEL_NAME], cwd=HERE)
+            while cf.poll() is None and web.poll() is None:
+                time.sleep(1)
+            if web.poll() is not None:
+                say("Folio's web server stopped (exit code %s)." % web.returncode)
+                break
+            say("The Cloudflare tunnel to https://%s stopped (exit code %s)." % (host, cf.returncode))
+            say("Folio is still running on this PC. Retrying the tunnel in 5 seconds; press Ctrl+C to stop.")
+            cf = None  # this process has exited; the next loop starts a fresh one
+            time.sleep(5)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        for p in (cf, web):
+            if p is not None and p.poll() is None:
+                try:
+                    p.terminate()
+                except Exception:
+                    pass
+
+
 def set_env_value(key, value):
     """Set KEY=value in folio.env (create the file from the template if it's missing)."""
     if not os.path.isfile(ENV_FILE):
@@ -346,27 +375,12 @@ def main():
     bar = "=" * 60
     if host and _domain_ready():
         # your own domain → a stable link that never changes
-        say("Starting your tunnel…")
-        cf = subprocess.Popen([CF, "tunnel", "--no-autoupdate", "run", "--url",
-                               "http://127.0.0.1:%s" % PORT, TUNNEL_NAME],
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
         print("\n" + bar)
-        say("Folio is online at:  https://%s" % host)
+        say("Folio address:  https://%s" % host)
         say("Password: the APP_PASSWORD you put in folio.env")
         print(bar)
-        say("Keep this window open. Closing it takes Folio offline.\n")
-        try:
-            for line in cf.stdout:
-                if re.search(r"ERR|error|failed", line):
-                    say(line.rstrip()[:200])
-        except KeyboardInterrupt:
-            pass
-        finally:
-            for p in (cf, web):
-                try:
-                    p.terminate()
-                except Exception:
-                    pass
+        say("Keep this window open. Cloudflare connection messages appear below.\n")
+        run_domain_tunnel(web, host)
         return
 
     if host and not _domain_ready():
