@@ -192,6 +192,16 @@ class Browser:
         cache[tab] = (time.time(), img)
         return img
 
+    def shot(self, tab="main"):
+        """A fresh screenshot with no cache — for the continuous MJPEG stream (lower quality = faster)."""
+        def go():
+            p = self._page(tab)
+            size = SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW
+            if p.viewport_size != size:
+                p.set_viewport_size(size)
+            return p.screenshot(type="jpeg", quality=50)
+        return self.run(go, timeout=20)
+
     def info(self, tab="main"):
         def go():
             p = self._page(tab)

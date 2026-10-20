@@ -465,6 +465,30 @@ def web_frame():
     return r
 
 
+@app.get("/api/web/stream")
+def web_stream():
+    """A continuous MJPEG stream — far smoother than polling one frame at a time. Only changed frames
+    are pushed, so a still page costs almost nothing; a moving page runs as fast as the PC can capture."""
+    api, b = _web_browser()
+
+    def gen():
+        last = None
+        while True:
+            try:
+                img = b.shot(tab="web")  # also starts Chrome if it isn't running yet
+            except Exception:
+                break
+            if img and img != last:
+                last = img
+                yield (b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: "
+                       + str(len(img)).encode() + b"\r\n\r\n" + img + b"\r\n")
+            _cr_touch(api)
+            time.sleep(0.015)  # up to ~60 checks/sec; real rate is capped by capture speed
+    r = Response(gen(), mimetype="multipart/x-mixed-replace; boundary=frame")
+    r.headers["Cache-Control"] = "no-store"
+    return r
+
+
 @app.get("/api/web/info")
 def web_info():
     api, b = _web_browser()

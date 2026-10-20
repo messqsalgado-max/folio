@@ -175,6 +175,9 @@
       if (!L.el) L.build();
       L.el.classList.add("on");
       if (L.el.classList.contains("kb") && !cfg.address) L.sink.focus();
+      if (cfg.stream && (!L.img.src || !L.img.src.includes("/stream"))) {
+        L.img.src = cfg.base + "/stream?t=" + Date.now();  // continuous MJPEG — much smoother than polling
+      }
       if (!L.on) { L.on = true; L.fast = 0; L.idle = 0; L.loop(); }
       if (cfg.address) {  // Browser tab: start Chrome + load a home page if it's not already on one
         fetch(cfg.base + "/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
@@ -185,11 +188,17 @@
         }).catch(() => {});
       }
     };
-    L.close = function () { L.on = false; L.el && L.el.classList.remove("on"); };
+    L.close = function () { L.on = false; L.el && L.el.classList.remove("on"); if (cfg.stream && L.img) L.img.src = ""; };
     L.kick = function () { L.fast = 8; L.idle = 0; };
     L.loop = async function () {
       let n = 0;
       while (L.on) {
+        if (cfg.stream) {  // frames arrive via the <img> MJPEG stream; just keep the address bar current
+          fetch(cfg.base + "/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
+            if (L.urlBar && document.activeElement !== L.urlBar) L.urlBar.value = i.url || ""; }).catch(() => {});
+          await new Promise(r => setTimeout(r, 500));
+          continue;
+        }
         let changed = false;
         try {
           const first = !L.img.src || !L.img.src.startsWith("blob:");
@@ -213,7 +222,7 @@
 
   const LiveCR = makeLive({id: "live", base: "/api/cr", address: false,
     label: "Classroom on Folio's server. Sign in yourself if Google asks."});
-  const LiveWeb = makeLive({id: "liveweb", base: "/api/web", address: true,
+  const LiveWeb = makeLive({id: "liveweb", base: "/api/web", address: true, stream: true,
     label: "A browser running on your PC."});
   window.FolioLive = LiveCR;
   window.FolioWeb = LiveWeb;
