@@ -574,6 +574,187 @@ def web_input():
 
 
 if sock is not None:
+    # Ephemeral multiplayer state: the site lobby is independent from game rooms.
+    _social_lock = threading.RLock()
+    _chat_clients = {}
+    _chat_history = []
+    _game_rooms = {}
+
+    def _social_send(ws, payload):
+        try:
+            ws.send(json.dumps(payload, separators=(",", ":")))
+            return True
+        except Exception:
+            return False
+
+    def _game_snapshot(room):
+        return {"type": "state", "game": room["game"], "code": room["code"],
+                "players": [room["players"].get(i, {}).get("name", "Waiting…") for i in (0, 1)],
+                "board": room["board"], "turn": room["turn"], "winner": room["winner"], "draw": room["draw"]}
+
+    def _game_broadcast(room):
+        state = _game_snapshot(room)
+        for seat, player in list(room["players"].items()):
+            if player.get("ws"):
+                _social_send(player["ws"], dict(state, seat=seat))
+
+    def _new_game_room(game):
+        code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5))
+        while code in _game_rooms:
+            code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5))
+        board = [""] * 9 if game == "tictactoe" else [""] * 42
+        room = {"code": code, "game": game, "board": board, "turn": 0, "winner": "", "draw": False,
+                "players": {}}
+        _game_rooms[code] = room
+        return room
+
+    def _leave_game_room(room, seat):
+        if room is None or seat is None:
+            return
+        room["players"].pop(seat, None)
+        if not room["players"]:
+            _game_rooms.pop(room["code"], None)
+        else:
+            _game_broadcast(room)
+
+    def _apply_game_move(room, seat, move):
+        if seat != room["turn"] or room["winner"] or room["draw"] or len(room["players"]) < 2:
+            return False
+        board = room["board"]
+        if room["game"] == "tictactoe":
+            if not isinstance(move, int) or not 0 <= move < 9 or board[move]:
+                return False
+            board[move] = "X" if seat == 0 else "O"
+            lines = ((0,1,2),(3,4,5),(6,7,8),(0,3,6),(1,4,7),(2,5,8),(0,4,8),(2,4,6))
+            if any(board[a] and board[a] == board[b] == board[c] for a,b,c in lines):
+                room["winner"] = board[move]
+        else:
+            if not isinstance(move, int) or not 0 <= move < 7:
+                return False
+            idx = next((r * 7 + move for r in range(5, -1, -1) if not board[r * 7 + move]), None)
+            if idx is None:
+                return False
+            token = "R" if seat == 0 else "Y"
+            board[idx] = token
+            row, col = divmod(idx, 7)
+            for dr, dc in ((0,1),(1,0),(1,1),(1,-1)):
+                count = 1
+                for sign in (-1, 1):
+                    rr, cc = row + dr * sign, col + dc * sign
+                    while 0 <= rr < 6 and 0 <= cc < 7 and board[rr*7+cc] == token:
+                        count += 1; rr += dr * sign; cc += dc * sign
+                if count >= 4:
+                    room["winner"] = token
+                    break
+        if not room["winner"] and all(board):
+            room["draw"] = True
+        room["turn"] = 1 - seat
+        return True
+
+    @sock.route("/ws/chat")
+    def ws_chat(ws):
+        if not session.get("ok") or not session.get("uid"):
+            return
+        client_id = secrets.token_hex(8)
+        last_message = 0.0
+        with _social_lock:
+            _chat_clients[client_id] = ws
+            _social_send(ws, {"type": "history", "messages": _chat_history[-50:]})
+            presence = {"type": "presence", "count": len(_chat_clients)}
+            for client in list(_chat_clients.values()):
+                _social_send(client, presence)
+        try:
+            while True:
+                raw = ws.receive()
+                if raw is None:
+                    break
+                try:
+                    data = json.loads(raw)
+                except (TypeError, ValueError):
+                    continue
+                if data.get("type") != "message":
+                    continue
+                name = re.sub(r"[^\w .-]", "", str(data.get("name", "Guest")), flags=re.UNICODE).strip()[:24] or "Guest"
+                text = str(data.get("text", "")).strip()[:400]
+                now = time.monotonic()
+                if not text or now - last_message < 0.5:
+                    continue
+                last_message = now
+                item = {"type": "message", "name": name, "text": text, "time": time.strftime("%H:%M")}
+                with _social_lock:
+                    _chat_history.append(item)
+                    del _chat_history[:-50]
+                    for cid, client in list(_chat_clients.items()):
+                        if not _social_send(client, item):
+                            _chat_clients.pop(cid, None)
+        finally:
+            with _social_lock:
+                _chat_clients.pop(client_id, None)
+                presence = {"type": "presence", "count": len(_chat_clients)}
+                for client in list(_chat_clients.values()):
+                    _social_send(client, presence)
+
+    @sock.route("/ws/games")
+    def ws_games(ws):
+        if not session.get("ok") or not session.get("uid"):
+            return
+        room = None
+        seat = None
+        try:
+            while True:
+                raw = ws.receive()
+                if raw is None:
+                    break
+                try:
+                    data = json.loads(raw)
+                except (TypeError, ValueError):
+                    continue
+                action = data.get("type")
+                if action == "create":
+                    game = data.get("game")
+                    if game not in ("tictactoe", "connect4"):
+                        _social_send(ws, {"type": "error", "message": "Choose a supported game."}); continue
+                    with _social_lock:
+                        if room:
+                            _leave_game_room(room, seat)
+                        room = _new_game_room(game); seat = 0
+                        name = re.sub(r"[^\w .-]", "", str(data.get("name", "Player 1")), flags=re.UNICODE).strip()[:24] or "Player 1"
+                        room["players"][seat] = {"ws": ws, "name": name}
+                        _game_broadcast(room)
+                elif action == "join":
+                    code = re.sub(r"[^A-Z0-9]", "", str(data.get("code", "")).upper())[:5]
+                    name = re.sub(r"[^\w .-]", "", str(data.get("name", "Player 2")), flags=re.UNICODE).strip()[:24] or "Player 2"
+                    with _social_lock:
+                        target = _game_rooms.get(code)
+                        if not target:
+                            _social_send(ws, {"type": "error", "message": "Room not found."}); continue
+                        if target["game"] != data.get("game"):
+                            _social_send(ws, {"type": "error", "message": "That room is for another game."}); continue
+                        if len(target["players"]) >= 2 and ws not in [p.get("ws") for p in target["players"].values()]:
+                            _social_send(ws, {"type": "error", "message": "That room is full."}); continue
+                        if room is not None and room is not target:
+                            _leave_game_room(room, seat)
+                        room = target
+                        existing = next((i for i,p in room["players"].items() if p.get("ws") is ws), None)
+                        seat = existing if existing is not None else next(i for i in (0, 1) if i not in room["players"])
+                        room["players"][seat] = {"ws": ws, "name": name}
+                        _game_broadcast(room)
+                elif action == "move" and room is not None and seat is not None:
+                    move = data.get("move")
+                    with _social_lock:
+                        if _apply_game_move(room, seat, move):
+                            _game_broadcast(room)
+                elif action == "reset" and room is not None and seat is not None:
+                    with _social_lock:
+                        if len(room["players"]) == 2:
+                            room["board"] = [""] * (9 if room["game"] == "tictactoe" else 42)
+                            room["winner"] = ""; room["draw"] = False; room["turn"] = 1 - room["turn"]
+                            _game_broadcast(room)
+        finally:
+            if room is not None and seat is not None:
+                with _social_lock:
+                    _leave_game_room(room, seat)
+
     @sock.route("/ws/cr")
     def ws_cr(ws):
         # Stream Classroom sign-in frames over one persistent connection instead of HTTP polling.

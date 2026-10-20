@@ -626,6 +626,7 @@ main{scroll-behavior:smooth}
       <button data-v="classroom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="13" rx="2"/><circle cx="12" cy="10.5" r="2.2"/><path d="M8 18c.6-2.2 2.1-3.3 4-3.3s3.4 1.1 4 3.3"/></svg>Classroom</button>
       <button data-v="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Library</button>
       <button data-v="games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4"/><circle cx="15.5" cy="11" r="1.1"/><circle cx="18" cy="13.5" r="1.1"/></svg>Games</button>
+      <button data-v="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.8 8.8 0 0 1-3.8-.8L4 20l1.1-3.4A7.2 7.2 0 0 1 4 12c0-4.2 3.6-7.5 8-7.5s8 2.8 8 7z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>Chat room</button>
       <button data-v="browser" class="webtab-only"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18"/></svg>Browser</button>
       <button data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
     </nav>
@@ -1069,6 +1070,26 @@ main{scroll-behavior:smooth}
         <button data-d="up">▲</button>
         <div><button data-d="left">◀</button><button data-d="down">▼</button><button data-d="right">▶</button></div>
       </div>
+      <article class="card mp-card" id="multiplayer">
+        <div class="mp-top"><div><h2>Play together</h2><p class="sub">Create a private room and share its code. Turn based games stay in sync across devices.</p></div><span class="mp-live" id="mp-status">Connecting…</span></div>
+        <div class="mp-controls"><label class="mp-field">Your name<input id="mp-name" maxlength="24" placeholder="Player name" autocomplete="nickname"></label>
+          <label class="mp-field">Game<select id="mp-game"><option value="tictactoe">Tic-Tac-Toe</option><option value="connect4">Connect Four</option></select></label>
+          <button class="btn acc" id="mp-create">Create room</button>
+          <label class="mp-field mp-code-field">Room code<input id="mp-code" maxlength="5" placeholder="ABCDE" autocomplete="off"></label>
+          <button class="btn" id="mp-join">Join room</button></div>
+        <div class="mp-play" id="mp-play" hidden><div class="mp-roomline"><b>Room <span id="mp-room-code"></span></b><button class="ghost" id="mp-copy">Copy code</button><span id="mp-turn"></span></div>
+          <div class="mp-players" id="mp-players"></div><div class="mp-board" id="mp-board" aria-label="Multiplayer game board"></div>
+          <button class="btn" id="mp-rematch" hidden>Play again</button></div>
+      </article>
+    </section>
+
+    <!-- STANDALONE SITE CHAT; independent from multiplayer game rooms -->
+    <section class="view" id="v-chat">
+      <div class="res-top"><div><h1>Chat room</h1><div class="sub">The Folio Lobby is shared by signed-in visitors. Game rooms are separate.</div></div><span class="mp-live" id="chat-presence">Connecting…</span></div>
+      <article class="card chat-card"><div class="chat-head"><label class="mp-field">Your name<input id="chat-name" maxlength="24" placeholder="Guest" autocomplete="nickname"></label><span class="sub">Lobby chat</span></div>
+        <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-label="Lobby messages"></div>
+        <form class="chat-compose" id="chat-form"><input id="chat-text" maxlength="400" placeholder="Message the lobby…" autocomplete="off" aria-label="Message"><button class="btn acc" type="submit">Send</button></form>
+      </article>
     </section>
   </main>
 </div>
@@ -1096,8 +1117,10 @@ main{scroll-behavior:smooth}
 #v-games .gm-dpad>div{display:flex;gap:8px;justify-content:center;margin-top:8px}
 #v-games .gm-dpad button{all:unset;cursor:pointer;width:58px;height:48px;display:inline-grid;place-items:center;
   font-size:20px;border-radius:14px;background:var(--glass-2);border:1px solid var(--line2);box-shadow:var(--shadow)}
+.mp-card{margin-top:26px;padding:20px}.mp-top,.mp-roomline,.chat-head{display:flex;align-items:center;justify-content:space-between;gap:16px}.mp-top h2{margin:0 0 4px;font-size:19px}.mp-top .sub{margin:0;max-width:580px}.mp-live{font-size:12px;color:var(--muted);white-space:nowrap}.mp-controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:18px}.mp-field{display:grid;gap:5px;min-width:145px;font-size:12px;color:var(--muted)}.mp-field input,.mp-field select{min-width:0;width:100%;padding:9px 11px;border-radius:10px}.mp-code-field{max-width:155px}.mp-controls>.btn{margin-bottom:0}.mp-play{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}.mp-roomline{justify-content:flex-start;flex-wrap:wrap}.mp-roomline #mp-turn{margin-left:auto;color:var(--muted);font-size:13px}.mp-roomline #mp-room-code{letter-spacing:.15em;color:var(--accent)}.mp-players{display:flex;justify-content:center;gap:14px;color:var(--muted);font-size:13px;margin:12px 0}.mp-board{display:grid;gap:6px;margin:14px auto;max-width:420px;aspect-ratio:1}.mp-board.tictactoe{grid-template:repeat(3,1fr)/repeat(3,1fr)}.mp-board.connect4{grid-template:repeat(6,1fr)/repeat(7,1fr);max-width:490px;aspect-ratio:7/6;padding:10px;border-radius:18px;background:var(--accent-soft)}.mp-cell{all:unset;cursor:pointer;display:grid;place-items:center;min-width:0;border-radius:12px;background:var(--glass-2);font-size:clamp(28px,8vw,64px);font-weight:750;transition:transform .14s,background .18s}.mp-cell:hover:not(:disabled){transform:scale(.97);background:var(--accent-soft)}.mp-cell:disabled{cursor:default}.mp-board.connect4 .mp-cell{border-radius:50%;font-size:0;background:var(--card);box-shadow:inset 0 2px 8px #0002}.mp-board.connect4 .mp-cell.red{background:#f26e78;box-shadow:0 0 14px #f26e7850}.mp-board.connect4 .mp-cell.yellow{background:#f2cb5d;box-shadow:0 0 14px #f2cb5d50}.mp-board .mark-x{color:#9e91ff}.mp-board .mark-o{color:#64d9cd}#mp-rematch{display:flex;margin:12px auto 0}.chat-card{max-width:860px;min-height:min(70vh,760px);padding:18px;display:flex;flex-direction:column}.chat-head{justify-content:flex-start;margin-bottom:14px}.chat-head .mp-field{max-width:220px}.chat-messages{height:min(56vh,570px);min-height:260px;overflow:auto;display:flex;flex-direction:column;gap:9px;padding:14px;border-radius:14px;background:var(--glass-2)}.chat-message{max-width:min(82%,620px);padding:9px 12px;border-radius:13px;background:var(--card);overflow-wrap:anywhere;animation:chat-in .2s ease-out}.chat-message b{font-size:12px;color:var(--accent)}.chat-message time{font-size:10px;color:var(--muted);margin-left:8px}.chat-message p{margin:3px 0 0;white-space:pre-wrap}.chat-compose{display:flex;gap:9px;margin-top:12px}.chat-compose input{min-width:0;flex:1;padding:11px 13px;border-radius:12px}.chat-compose .btn{margin:0}@keyframes chat-in{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
 @media (hover:none){#v-games .gm-dpad{display:block}}
-@media (prefers-reduced-motion: reduce){#gm-canvas,#gm-canvas:hover{transition:none;transform:none}#gm-canvas.gm-enter,#v-games .gm-score.score-pop{animation:none!important}}
+@media (max-width:650px){.mp-card{padding:15px}.mp-controls .mp-field{flex:1 1 130px}.chat-card{padding:12px}.mp-board{max-width:min(88vw,420px)}.mp-board.connect4{max-width:min(90vw,490px)}}
+@media (prefers-reduced-motion: reduce){#gm-canvas,#gm-canvas:hover{transition:none;transform:none}#gm-canvas.gm-enter,#v-games .gm-score.score-pop,.chat-message{animation:none!important}}
 </style>
 <div class="toast" id="toast"></div>
 <div class="palette thoughts" id="thoughts" aria-hidden="true">
@@ -1785,6 +1808,72 @@ document.addEventListener("keydown",e=>{
 });
 
 window.addEventListener("pywebviewready",async()=>{applySettings(await api().get_settings());loadHome()});
+
+/* ================= Standalone lobby chat and online games ================= */
+(function(){
+  const byId=id=>document.getElementById(id), socketURL=path=>`${location.protocol==='https:'?'wss':'ws'}://${location.host}${path}`;
+  const saved=(key,fallback)=>{try{return localStorage.getItem('folio-'+key)||fallback}catch(_){return fallback}};
+  const persist=(key,value)=>{try{localStorage.setItem('folio-'+key,value)}catch(_){}};
+  let chat=null,gameSocket=null,lastGameState=null;
+  const chatName=byId('chat-name'), gameName=byId('mp-name');
+  if(!chatName||!gameName)return;
+  chatName.value=saved('chat-name','');gameName.value=saved('game-name','');
+  chatName.addEventListener('change',()=>persist('chat-name',chatName.value.trim()));
+  gameName.addEventListener('change',()=>persist('game-name',gameName.value.trim()));
+  function ensureSocket(kind){
+    const isChat=kind==='chat', current=isChat?chat:gameSocket;
+    if(current&&current.readyState<2)return current;
+    const ws=new WebSocket(socketURL(isChat?'/ws/chat':'/ws/games'));
+    if(isChat)chat=ws;else gameSocket=ws;
+    ws.onopen=()=>{(isChat?byId('chat-presence'):byId('mp-status')).textContent=isChat?'Lobby connected':'Online';};
+    ws.onclose=()=>{(isChat?byId('chat-presence'):byId('mp-status')).textContent='Disconnected';};
+    ws.onerror=()=>{(isChat?byId('chat-presence'):byId('mp-status')).textContent='Connection issue';};
+    ws.onmessage=e=>{let data;try{data=JSON.parse(e.data)}catch(_){return}if(isChat)chatEvent(data);else gameEvent(data);};
+    return ws;
+  }
+  function appendChat(data){
+    const log=byId('chat-messages'),row=document.createElement('article'),head=document.createElement('div'),name=document.createElement('b'),time=document.createElement('time'),text=document.createElement('p');
+    row.className='chat-message';name.textContent=data.name||'Guest';time.textContent=data.time||'';text.textContent=data.text||'';head.append(name,time);row.append(head,text);log.append(row);
+    while(log.children.length>100)log.firstElementChild.remove();log.scrollTop=log.scrollHeight;
+  }
+  function chatEvent(data){
+    if(data.type==='history'){byId('chat-messages').replaceChildren();data.messages.forEach(appendChat);}
+    else if(data.type==='message')appendChat(data);
+    else if(data.type==='presence')byId('chat-presence').textContent=`${data.count} online`;
+  }
+  function openChat(){const ws=ensureSocket('chat');if(ws.readyState===WebSocket.CONNECTING)byId('chat-presence').textContent='Connecting…';}
+  byId('chat-form').addEventListener('submit',e=>{
+    e.preventDefault();const input=byId('chat-text'),text=input.value.trim();if(!text)return;
+    const ws=ensureSocket('chat');if(ws.readyState!==WebSocket.OPEN){byId('chat-presence').textContent='Reconnecting…';return;}
+    ws.send(JSON.stringify({type:'message',name:chatName.value.trim()||'Guest',text}));input.value='';input.focus();
+  });
+  function gameSend(action){const ws=ensureSocket('game');const data=typeof action==='string'?{type:action}:action;
+    if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data));else if(ws.readyState===WebSocket.CONNECTING)ws.addEventListener('open',()=>ws.send(JSON.stringify(data)),{once:true});}
+  function gameEvent(data){
+    if(data.type==='error'){byId('mp-status').textContent=data.message;return;}
+    if(data.type!=='state')return;lastGameState=data;byId('mp-play').hidden=false;byId('mp-room-code').textContent=data.code;byId('mp-code').value=data.code;
+    const symbols=data.game==='tictactoe'?['X','O']:['Red','Yellow'];
+    byId('mp-players').textContent=`${data.players[0]} (${symbols[0]})  ·  ${data.players[1]} (${symbols[1]})`;
+    const waiting=data.players[1]==='Waiting…',self=data.seat===data.turn;
+    byId('mp-turn').textContent=data.winner?`${data.winner} wins!`:data.draw?'Draw game':waiting?'Waiting for a friend to join':self?'Your turn':`${data.players[data.turn]}'s turn`;
+    const board=byId('mp-board');board.className='mp-board '+data.game;board.replaceChildren();
+    data.board.forEach((value,index)=>{
+      const cell=document.createElement('button');cell.type='button';cell.className='mp-cell';cell.setAttribute('aria-label',data.game==='connect4'?`Column ${index%7+1}, ${value||'empty'}`:`Square ${index+1}, ${value||'empty'}`);
+      if(data.game==='connect4'){if(value==='R')cell.classList.add('red');if(value==='Y')cell.classList.add('yellow');}
+      else if(value){cell.textContent=value;cell.classList.add(value==='X'?'mark-x':'mark-o');}
+      cell.disabled=waiting||!self||!!data.winner||data.draw||!!value;
+      cell.addEventListener('click',()=>gameSend({type:'move',move:data.game==='connect4'?index%7:index}));board.append(cell);
+    });
+    byId('mp-rematch').hidden=!(data.winner||data.draw);
+    byId('mp-status').textContent=waiting?'Room ready':'In a game';
+  }
+  byId('mp-create').addEventListener('click',()=>gameSend({type:'create',game:byId('mp-game').value,name:gameName.value.trim()||'Player 1'}));
+  byId('mp-join').addEventListener('click',()=>gameSend({type:'join',game:byId('mp-game').value,code:byId('mp-code').value.trim(),name:gameName.value.trim()||'Player 2'}));
+  byId('mp-code').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5)});
+  byId('mp-rematch').addEventListener('click',()=>gameSend('reset'));
+  byId('mp-copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(byId('mp-room-code').textContent);byId('mp-status').textContent='Room code copied';}catch(_){byId('mp-status').textContent='Share code '+byId('mp-room-code').textContent;}});
+  document.querySelectorAll('.nav button').forEach(button=>button.addEventListener('click',()=>{if(button.dataset.v==='chat')openChat();if(button.dataset.v==='games')ensureSocket('game');}));
+})();
 
 /* ================= Games (a break while things generate) ================= */
 (function(){
