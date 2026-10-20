@@ -89,7 +89,7 @@
   }
 
   function makeLivePanel(cfg) {  // private panel mechanics; each feature owns an independent instance
-    const L = {el: null, on: false, fast: 0, idle: 0, viewportResize: null};
+    const L = {el: null, on: false, fast: 0, idle: 0, viewportResize: null, _pending: null, _raf: 0};
     L.syncViewport = function () {
       const mobile = window.innerWidth <= 760;
       const size = mobile ? {width: 720, height: 1280} : {
@@ -126,6 +126,7 @@
       L.el = d;
       const img = d.querySelector("img"), inp = d.querySelector(".keys input"), title = d.querySelector(".t");
       const urlBar = d.querySelector(".url");
+      img.decoding = "async";  // decode frames off the paint path so a new src never blocks the main thread
       let chain = Promise.resolve();
       const send = (body) => {  // over the socket when it's open, else fall back to an HTTP POST
         if (L.ws && L.ws.readyState === 1) { try { L.ws.send(JSON.stringify(body)); } catch (e) {} L.kick(); return Promise.resolve(); }
@@ -194,6 +195,15 @@
       };
       L.img = img; L.title = title; L.urlBar = urlBar;
     };
+    L.show = function (blob) {  // paint only the freshest frame, on the next animation frame; drop any we outran
+      L._pending = blob;        // keep just the newest undrawn blob so a slow tab never backs up -> max effective FPS
+      if (L._raf) return;       // a paint is already scheduled; it will pick up whatever _pending holds by then
+      L._raf = requestAnimationFrame(() => {
+        L._raf = 0; const b = L._pending; L._pending = null; if (!b || !L.img) return;
+        const u = URL.createObjectURL(b), old = L.img.src; L.img.src = u;
+        if ((old || "").startsWith("blob:")) URL.revokeObjectURL(old);  // only the frame we actually paint ever gets a URL
+      });
+    };
     L.openWs = function () {  // one socket: frames come down, input goes up; works through the Cloudflare tunnel
       try {
         const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + cfg.wsPath);
@@ -202,7 +212,7 @@
         let got = false;
         ws.onmessage = (e) => {
           if (typeof e.data === "string") { try { const i = JSON.parse(e.data); if (L.title) L.title.textContent = i.title || i.url || ""; if (L.urlBar && document.activeElement !== L.urlBar) L.urlBar.value = i.url || ""; } catch (x) {} return; }
-          got = true; const u = URL.createObjectURL(e.data), old = L.img.src; L.img.src = u; if ((old || "").startsWith("blob:")) URL.revokeObjectURL(old);
+          got = true; L.show(e.data);
         };
         L.viewportResize = L.syncViewport;
         window.addEventListener("resize", L.viewportResize, {passive: true});
@@ -235,6 +245,8 @@
       }
     };
     L.close = function () { L.on = false; L.el && L.el.classList.remove("on");
+      if (L._raf) { cancelAnimationFrame(L._raf); L._raf = 0; } L._pending = null;
+      if (L.img && (L.img.src || "").startsWith("blob:")) { try { URL.revokeObjectURL(L.img.src); } catch (e) {} }
       if (L.viewportResize) window.removeEventListener("resize", L.viewportResize); L.viewportResize = null;
       try { L.ws && L.ws.close(); } catch (e) {} L.ws = null; };
     L.kick = function () { L.fast = 8; L.idle = 0; };
@@ -248,7 +260,7 @@
           const res = await fetch(cfg.base + "/frame?t=" + Date.now() + (first ? "&f=1" : ""), {credentials: "same-origin"});
           if (res.status === 200) {
             const b = await res.blob();
-            if (b && b.size) { changed = true; const u = URL.createObjectURL(b), old = L.img.src; L.img.src = u; if (old.startsWith("blob:")) URL.revokeObjectURL(old); }
+            if (b && b.size) { changed = true; L.show(b); }
           }
           if (n++ % 8 === 0) fetch(cfg.base + "/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
             if (L.title) L.title.textContent = i.title || i.url || "";

@@ -462,15 +462,23 @@ def cr_input():
         return jsonify({"error": str(e)[:200]})
 
 
+def _num(v, default=0.0):
+    """Coerce a value from an untrusted live-view message to a float, never raising."""
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
 def _cr_do(b, d):
     """Apply input from the Classroom live view to its isolated browser."""
     kind = d.get("kind")
     if kind == "viewport":
         b.set_live_viewport(d.get("width", 720), d.get("height", 1280))
     elif kind == "tap":
-        b.tap(float(d["x"]), float(d["y"]))
+        b.tap(_num(d.get("x")), _num(d.get("y")))
     elif kind == "scroll":
-        b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]))
+        b.scroll(_num(d.get("x"), 500), _num(d.get("y"), 400), _num(d.get("dy")))
     elif kind == "type":
         b.type(str(d.get("text", ""))[:2000])
     elif kind == "key":
@@ -559,9 +567,9 @@ def _web_do(b, d):
     if kind == "viewport":
         b.set_live_viewport(d.get("width", 1100), d.get("height", 820))
     elif kind == "tap":
-        b.tap(float(d["x"]), float(d["y"]))
+        b.tap(_num(d.get("x")), _num(d.get("y")))
     elif kind == "scroll":
-        b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]))
+        b.scroll(_num(d.get("x"), 500), _num(d.get("y"), 400), _num(d.get("dy")))
     elif kind == "type":
         b.type(str(d.get("text", ""))[:2000])
     elif kind == "key":
@@ -987,11 +995,14 @@ if sock is not None:
             while not stop.is_set():
                 try:
                     msg = ws.receive()
-                    if msg is None:
-                        break
+                except Exception:
+                    break          # socket closed/errored → end the stream
+                if msg is None:
+                    break
+                try:
                     _cr_do(b, json.loads(msg))
                 except Exception:
-                    break
+                    pass           # ignore one bad input message; don't tear down the live view
             stop.set()
 
         threading.Thread(target=reader, daemon=True).start()
@@ -1039,11 +1050,14 @@ if sock is not None:
             while not stop.is_set():
                 try:
                     msg = ws.receive()
-                    if msg is None:
-                        break
+                except Exception:
+                    break          # socket closed/errored → end the stream
+                if msg is None:
+                    break
+                try:
                     _web_do(b, json.loads(msg))
                 except Exception:
-                    break
+                    pass           # ignore one bad input message; don't tear down the live view
             stop.set()
         threading.Thread(target=reader, daemon=True).start()
 
