@@ -74,7 +74,7 @@ class Browser:
             kw = dict(user_data_dir=self.profile, viewport=VIEW, user_agent=UA, locale="en-US",
                       headless=headless, ignore_default_args=["--enable-automation"], args=args)
             # how long one screenshot is reused: short on a real PC (smooth), longer on a tiny server (CPU)
-            self._frame_ttl = int(os.environ.get("FOLIO_FRAME_MS") or (200 if headless else 55)) / 1000.0
+            self._frame_ttl = int(os.environ.get("FOLIO_FRAME_MS") or (200 if headless else 40)) / 1000.0
             channel = os.environ.get("FOLIO_BROWSER_CHANNEL") or ("msedge" if os.name == "nt" else "chrome")
             if channel == "none":  # use Playwright's bundled Chromium (what the Docker image installs)
                 channel = None
