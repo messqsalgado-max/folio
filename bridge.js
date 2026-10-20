@@ -171,7 +171,20 @@
       };
       L.img = img; L.title = title; L.urlBar = urlBar;
     };
-    L.open = function () { if (!L.el) L.build(); L.el.classList.add("on"); if (L.el.classList.contains("kb") && !cfg.address) L.sink.focus(); if (!L.on) { L.on = true; L.fast = 0; L.idle = 0; L.loop(); } };
+    L.open = function () {
+      if (!L.el) L.build();
+      L.el.classList.add("on");
+      if (L.el.classList.contains("kb") && !cfg.address) L.sink.focus();
+      if (!L.on) { L.on = true; L.fast = 0; L.idle = 0; L.loop(); }
+      if (cfg.address) {  // Browser tab: start Chrome + load a home page if it's not already on one
+        fetch(cfg.base + "/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
+          if (i.off || !i.url || i.url.startsWith("about:")) {
+            fetch(cfg.base + "/go", {method: "POST", credentials: "same-origin",
+              headers: {"Content-Type": "application/json"}, body: JSON.stringify({url: "https://www.google.com"})}).then(() => L.kick());
+          }
+        }).catch(() => {});
+      }
+    };
     L.close = function () { L.on = false; L.el && L.el.classList.remove("on"); };
     L.kick = function () { L.fast = 8; L.idle = 0; };
     L.loop = async function () {
