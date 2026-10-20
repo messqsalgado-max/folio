@@ -9,3 +9,4 @@ reportlab==5.0.1
 pypdf==6.20.1
 pillow==12.3.0
 playwright==1.64.0
+flask-sock==0.7.0

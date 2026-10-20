@@ -94,7 +94,7 @@ def _open(path):
 
 def ensure_deps():
     missing = False
-    for mod in ("flask", "playwright", "anthropic", "pptx", "docx", "reportlab", "PIL", "ddgs"):
+    for mod in ("flask", "flask_sock", "playwright", "anthropic", "pptx", "docx", "reportlab", "PIL", "ddgs"):
         try:
             __import__(mod)
         except Exception:

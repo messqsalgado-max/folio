@@ -113,19 +113,28 @@
       const img = d.querySelector("img"), inp = d.querySelector(".keys input"), title = d.querySelector(".t");
       const urlBar = d.querySelector(".url");
       let chain = Promise.resolve();
-      const send = (body) => (chain = chain.then(() => fetch(cfg.base + "/input", {method: "POST", credentials: "same-origin",
-        headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)})).then(() => L.kick()).catch(() => {}));
+      const send = (body) => {  // over the socket when it's open, else fall back to an HTTP POST
+        if (L.ws && L.ws.readyState === 1) { try { L.ws.send(JSON.stringify(body)); } catch (e) {} L.kick(); return Promise.resolve(); }
+        return (chain = chain.then(() => fetch(cfg.base + "/input", {method: "POST", credentials: "same-origin",
+          headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)})).then(() => L.kick()).catch(() => {}));
+      };
       const goTo = () => { const u = (urlBar.value || "").trim(); if (!u) return;
-        fetch(cfg.base + "/go", {method: "POST", credentials: "same-origin", headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({url: u})}).then(() => L.kick()).catch(() => {}); urlBar.blur(); };
+        if (L.ws && L.ws.readyState === 1) { try { L.ws.send(JSON.stringify({kind: "go", url: u})); } catch (e) {} L.kick(); }
+        else fetch(cfg.base + "/go", {method: "POST", credentials: "same-origin", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({url: u})}).then(() => L.kick()).catch(() => {});
+        urlBar.blur(); };
       const at = (cx, cy) => { const r = img.getBoundingClientRect(), k = img.naturalWidth / r.width;
         return {x: Math.round((cx - r.left) * k), y: Math.round((cy - r.top) * k)}; };
+      // coalesce rapid scroll events into ~30/s so they don't flood the one browser thread
+      let sAcc = 0, sX = 550, sY = 400, sTimer = null;
+      const sendScroll = (x, y, dy) => { sAcc += dy; sX = x; sY = y;
+        if (!sTimer) sTimer = setTimeout(() => { const d = sAcc; sAcc = 0; sTimer = null; if (d) send({kind: "scroll", x: sX, y: sY, dy: Math.round(d)}); }, 33); };
       let t0 = null, buf = "", timer = null;
       img.addEventListener("touchstart", e => { const p = e.touches[0]; t0 = {x: p.clientX, y: p.clientY, n: e.touches.length}; }, {passive: true});
       img.addEventListener("touchend", e => {
         if (!t0 || t0.n > 1) return; const p = e.changedTouches[0], dy = p.clientY - t0.y, dx = p.clientX - t0.x;
         const k = img.naturalWidth / img.getBoundingClientRect().width;
-        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) send({kind: "scroll", ...at(t0.x, t0.y), dy: Math.round(-dy * k * 1.6)});
+        if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { const p2 = at(t0.x, t0.y); sendScroll(p2.x, p2.y, Math.round(-dy * k * 1.6)); }
         else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) { e.preventDefault(); send({kind: "tap", ...at(p.clientX, p.clientY)}); }
         t0 = null;
       });
@@ -153,7 +162,7 @@
         if (!L.on || typing(e.target)) return;
         const t = (e.clipboardData || window.clipboardData).getData("text"); if (t) { e.preventDefault(); flush(); send({kind: "type", text: t}); }
       });
-      img.addEventListener("wheel", e => { e.preventDefault(); send({kind: "scroll", ...at(e.clientX, e.clientY), dy: e.deltaY}); }, {passive: false});
+      img.addEventListener("wheel", e => { e.preventDefault(); const p2 = at(e.clientX, e.clientY); sendScroll(p2.x, p2.y, e.deltaY); }, {passive: false});
       inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); typeOut(true); } });
       if (urlBar) urlBar.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); goTo(); } });
       const typeOut = (enter) => { const v = inp.value; inp.value = "";
@@ -171,30 +180,32 @@
       };
       L.img = img; L.title = title; L.urlBar = urlBar;
     };
-    L.beginStream = async function () {
-      // wait until Chrome is actually up (it may take a few seconds to launch) before judging the stream
-      for (let i = 0; i < 45 && L.on && L.useStream; i++) {
-        try { const info = await fetch(cfg.base + "/info", {credentials: "same-origin"}).then(r => r.json()); if (!info.off) break; } catch (e) {}
-        await new Promise(r => setTimeout(r, 400));
-      }
-      if (!L.on || !L.useStream) return;
-      L.img.src = cfg.base + "/stream?t=" + Date.now();
-      // if no frame renders soon (e.g. a proxy like Cloudflare buffers the stream), fall back to polling
-      clearTimeout(L._fb);
-      L._fb = setTimeout(() => { if (L.on && L.useStream && !L.img.naturalWidth) L.fallback(); }, 3000);
-      L.img.onerror = () => { if (L.useStream) L.fallback(); };
+    L.openWs = function () {  // one socket: frames come down, input goes up; works through the Cloudflare tunnel
+      try {
+        const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + cfg.wsPath);
+        ws.binaryType = "blob";
+        L.ws = ws;
+        let got = false;
+        ws.onmessage = (e) => {
+          if (typeof e.data === "string") { try { const i = JSON.parse(e.data); if (L.urlBar && document.activeElement !== L.urlBar) L.urlBar.value = i.url || ""; } catch (x) {} return; }
+          got = true; const u = URL.createObjectURL(e.data), old = L.img.src; L.img.src = u; if ((old || "").startsWith("blob:")) URL.revokeObjectURL(old);
+        };
+        ws.onclose = () => { if (L.useWs && !got) L.fallback(); };
+        ws.onerror = () => { if (L.useWs && !got) L.fallback(); };
+        setTimeout(() => { if (L.on && L.useWs && !got) L.fallback(); }, 7000);  // no frames in time → polling
+      } catch (e) { L.fallback(); }
     };
-    L.fallback = function () {
-      L.useStream = false; clearTimeout(L._fb); L.img.onerror = null;
-      if ((L.img.src || "").includes("/stream")) L.img.src = "";  // drop the stream connection; the loop polls now
-      L.fast = 8; L.idle = 0;
+    L.fallback = function () {  // socket didn't work (rare) → the polling loop takes over
+      L.useWs = false;
+      try { L.ws && L.ws.close(); } catch (e) {}
+      L.ws = null; L.fast = 8; L.idle = 0;
     };
     L.open = function () {
       if (!L.el) L.build();
       L.el.classList.add("on");
       if (L.el.classList.contains("kb") && !cfg.address) L.sink.focus();
-      if (L.useStream === undefined) L.useStream = !!cfg.stream;
-      if (L.useStream) L.beginStream();
+      if (L.useWs === undefined) L.useWs = !!cfg.ws;
+      if (L.useWs && (!L.ws || L.ws.readyState > 1)) L.openWs();
       if (!L.on) { L.on = true; L.fast = 0; L.idle = 0; L.loop(); }
       if (cfg.address) {  // Browser tab: start Chrome + load a home page if it's not already on one
         fetch(cfg.base + "/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
@@ -205,17 +216,12 @@
         }).catch(() => {});
       }
     };
-    L.close = function () { L.on = false; L.el && L.el.classList.remove("on"); if (L.img && (L.img.src || "").includes("/stream")) L.img.src = ""; };
+    L.close = function () { L.on = false; L.el && L.el.classList.remove("on"); try { L.ws && L.ws.close(); } catch (e) {} L.ws = null; };
     L.kick = function () { L.fast = 8; L.idle = 0; };
     L.loop = async function () {
       let n = 0;
       while (L.on) {
-        if (L.useStream) {  // frames arrive via the <img> MJPEG stream; just keep the address bar current
-          fetch(cfg.base + "/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
-            if (L.urlBar && document.activeElement !== L.urlBar) L.urlBar.value = i.url || ""; }).catch(() => {});
-          await new Promise(r => setTimeout(r, 500));
-          continue;
-        }
+        if (L.useWs) { await new Promise(r => setTimeout(r, 1000)); continue; }  // frames + address come over the socket
         let changed = false;
         try {
           const first = !L.img.src || !L.img.src.startsWith("blob:");
@@ -239,7 +245,7 @@
 
   const LiveCR = makeLive({id: "live", base: "/api/cr", address: false,
     label: "Classroom on Folio's server. Sign in yourself if Google asks."});
-  const LiveWeb = makeLive({id: "liveweb", base: "/api/web", address: true, stream: true,
+  const LiveWeb = makeLive({id: "liveweb", base: "/api/web", address: true, ws: true, wsPath: "/ws/web",
     label: "A browser running on your PC."});
   window.FolioLive = LiveCR;
   window.FolioWeb = LiveWeb;

@@ -189,6 +189,14 @@ app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
                   SESSION_COOKIE_SECURE=any(os.environ.get(k) for k in ("SPACE_ID", "RENDER", "FOLIO_HTTPS")),
                   PERMANENT_SESSION_LIFETIME=60 * 60 * 24 * 30, MAX_CONTENT_LENGTH=25 * 1024 * 1024)
 
+# WebSocket for the Browser panel: one open pipe pushes frames and carries input — smooth, and it
+# survives the Cloudflare tunnel (which buffers plain HTTP streams). Optional dependency.
+try:
+    from flask_sock import Sock
+    sock = Sock(app)
+except Exception:
+    sock = None
+
 
 def _password():
     return os.environ.get("APP_PASSWORD") or ""
@@ -495,25 +503,77 @@ def web_info():
     return jsonify(b.info(tab="web") if b.is_running() else {"url": "", "title": "", "off": True})
 
 
+def _web_do(b, d):
+    """Apply one input message to the web browsing tab (used by both the HTTP route and the WebSocket)."""
+    kind = d.get("kind")
+    if kind == "tap":
+        b.tap(float(d["x"]), float(d["y"]), tab="web")
+    elif kind == "scroll":
+        b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]), tab="web")
+    elif kind == "type":
+        b.type(str(d.get("text", ""))[:2000], tab="web")
+    elif kind == "key":
+        b.key(str(d.get("key", "")), tab="web")
+    elif kind == "nav":
+        b.nav(str(d.get("what", "")), tab="web")
+    elif kind == "go":
+        b.browse(str(d.get("url", "")), tab="web")
+
+
 @app.post("/api/web/input")
 def web_input():
     api, b = _web_browser()
-    d = request.get_json(silent=True) or {}
     try:
-        kind = d.get("kind")
-        if kind == "tap":
-            b.tap(float(d["x"]), float(d["y"]), tab="web")
-        elif kind == "scroll":
-            b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]), tab="web")
-        elif kind == "type":
-            b.type(str(d.get("text", ""))[:2000], tab="web")
-        elif kind == "key":
-            b.key(str(d.get("key", "")), tab="web")
-        elif kind == "nav":
-            b.nav(str(d.get("what", "")), tab="web")
+        _web_do(b, request.get_json(silent=True) or {})
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)[:200]})
+
+
+if sock is not None:
+    @sock.route("/ws/web")
+    def ws_web(ws):
+        # one socket: frames (binary) go down, input + address (JSON text) go up; survives the tunnel.
+        # input is read on its own thread so sending frames is never held up waiting for a keypress.
+        if not WEBTAB or not session.get("ok") or not session.get("uid"):
+            return
+        _ctx.uid = session["uid"]
+        api = cur()
+        b = getattr(api._classroom, "browser", None)
+        if b is None:
+            return
+        stop = threading.Event()
+
+        def reader():
+            while not stop.is_set():
+                try:
+                    msg = ws.receive()
+                    if msg is None:
+                        break
+                    _web_do(b, json.loads(msg))
+                except Exception:
+                    break
+            stop.set()
+        threading.Thread(target=reader, daemon=True).start()
+
+        last, last_url, last_info = None, "", 0.0
+        while not stop.is_set():
+            try:
+                img = b.shot(tab="web")  # also launches Chrome the first time
+                if img and img != last:
+                    last = img
+                    ws.send(img)
+                if time.time() - last_info > 1:  # keep the address bar current
+                    last_info = time.time()
+                    info = b.info(tab="web")
+                    if info.get("url") != last_url:
+                        last_url = info.get("url")
+                        ws.send(json.dumps({"url": last_url, "title": info.get("title", "")}))
+                _cr_touch(api)
+                time.sleep(0.008)
+            except Exception:
+                break
+        stop.set()
 
 
 @app.get("/manifest.json")
