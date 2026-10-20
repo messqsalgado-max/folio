@@ -37,7 +37,7 @@ file, never clicks Turn in). There is also a **web version** of the same app for
 - Classroom on the web uses **`cloudbrowser.py`**: a real Chrome runs on the server (Playwright), the
   student sees it live and signs in themselves; `classroom.py` then drives it. Chrome launches only while
   in use and an idle watchdog (`FOLIO_CR_IDLE`, default 360s) shuts it down to free memory.
-- Extra web features added: a **Games** tab (2048, Snake, Memory), and an optional **Browser** tab (a
+- Extra web features added: a **Games** tab (2048, Snake, Memory, Tetris, Minesweeper, Breakout), and an optional **Browser** tab (a
   general web browser running on the PC, for personal devices — OFF by default via `FOLIO_BROWSER_TAB=1`).
 
 ## Hosting options (all set up)
