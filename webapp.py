@@ -186,7 +186,7 @@ ALLOWED = {
     "get_settings", "save_settings", "generate", "cancel", "revise", "undo", "restyle", "recheck",
     "check_sources", "list_projects", "load_project", "thumbs", "edit_slide", "photo_options", "set_photo",
     "quiz", "home", "personal_qs", "open_url",
-} | ({"cr_open", "cr_status", "cr_list", "cr_import", "cr_link", "cr_docs", "cr_plan", "cr_write",
+} | ({"cr_open", "cr_status", "cr_list", "cr_import", "cr_link", "cr_docs", "cr_plan", "cr_research_fill", "cr_write",
       "cr_add_slides", "cr_show"} if CLOUD_CR else set())
 
 app = Flask(__name__)

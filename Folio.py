@@ -742,6 +742,31 @@ class Api:
         except Exception as e:
             return {"error": str(e)[:300]}
 
+    def cr_research_fill(self, folder, url, instruction):
+        """Read the student's doc, research each question fresh on the web, and draft answers to add
+        under each one. Nothing is written yet — the student reviews the draft first."""
+        try:
+            meta, cr = self._cr_link(folder)
+            self._emit("cr_progress", "Reading your doc…")
+            text = self._classroom.read_doc(url)
+            if not text:
+                return {"error": "Couldn't read that doc."}
+            s = load_settings()
+            opts = dict(meta.get("inputs") or {}, **{k: s.get(k) for k in (
+                "provider", "api_key", "model", "gemini_key", "gemini_model", "brave_key",
+                "source_level", "wiki_ok", "blocked_sites", "max_age")})
+            assignment = "\n".join(x for x in (
+                cr.get("title"), (meta.get("inputs") or {}).get("prompt"),
+                (meta.get("inputs") or {}).get("task"), instruction) if x)
+            edits = engine.research_fill(opts, url, text, assignment,
+                                         lambda k, t, e=None: self._emit("cr_progress", t))
+            return {"edits": [{"after": e.get("after", ""), "replace": e.get("replace", ""), "text": e.get("text", ""), "why": e.get("why", "")}
+                              for e in edits if (e.get("text") or "").strip()]}
+        except classroom.NotSignedIn:
+            return {"error": "Sign in to Classroom in the Classroom window first."}
+        except Exception as e:
+            return {"error": str(e)[:300]}
+
     def cr_write(self, folder, url, edits):
         """Type the reviewed edits into the student's existing Google Doc, then check they're there."""
         try:

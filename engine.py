@@ -799,6 +799,76 @@ def plan_doc_edits(opts, doc_name, doc_text, spec, instruction, cancel=None):
     return call_tool(opts, system, user, EDITS_TOOL, cancel).get("edits") or []
 
 
+QUESTIONS_TOOL = {
+    "name": "list_questions",
+    "description": "List each question/prompt in the doc that needs a researched answer, with a web "
+                   "search query for it. Call exactly once.",
+    "input_schema": {"type": "object", "properties": {"questions": {"type": "array", "items": {
+        "type": "object", "properties": {
+            "after": {"type": "string", "description": "The exact line from the doc that asks this "
+                      "(copied verbatim, one line, under 120 characters)."},
+            "query": {"type": "string", "description": "A web search query to research the answer."},
+        }, "required": ["after", "query"]}}}, "required": ["questions"]},
+}
+
+
+def research_fill(opts, doc_name, doc_text, assignment, progress=None, cancel=None):
+    """Read a worksheet/question doc, research each question fresh on the web, and return answers to
+    add under each question. Returns [{'after','text','why'}]. Facts come only from the research."""
+    cancel = cancel or threading.Event()
+    progress = progress or (lambda *a: None)
+
+    sys1 = ("You read a student's worksheet or question doc and list the questions that need a researched, "
+            "factual answer, each with a good web search query. Skip questions the doc already answers, and "
+            "skip personal-opinion questions that research can't answer.")
+    user1 = (f"<assignment>\n{(assignment or '')[:4000]}\n</assignment>\n"
+             f"<doc name=\"{doc_name}\">\n{doc_text[:15000]}\n</doc>\n\nCall list_questions.")
+    questions = (call_tool(opts, sys1, user1, QUESTIONS_TOOL, cancel).get("questions") or [])[:12]
+    if not questions:  # nothing to research → answer from the doc + assignment alone
+        return plan_doc_edits(opts, doc_name, doc_text, {"assignment": assignment}, "", cancel)
+
+    key = (opts.get("brave_key") or "").strip()
+    research = []
+    for i, q in enumerate(questions, 1):
+        if cancel.is_set():
+            raise Cancelled()
+        query = (q.get("query") or q.get("after") or "").strip()
+        if not query:
+            continue
+        progress("thought", f"Researching {i} of {len(questions)}: {query[:70]}…")
+        res = brave_search(query, key) if key else ddg_search(query, 6)
+        res = [] if isinstance(res, dict) else res
+        try:
+            res = sources.filter_results(res, opts) or res
+        except Exception:
+            pass
+        srcs = [{"title": r.get("title"), "url": r.get("url"), "snippet": r.get("snippet")} for r in res[:3]]
+        if res:  # pull one real page for depth beyond the snippet
+            try:
+                import review
+                txt = review._page_text(res[0].get("url") or "")
+                if txt:
+                    srcs.append({"url": res[0].get("url"),
+                                 "excerpt": re.sub(r"\s+", " ", txt).strip()[:1500]})
+            except Exception:
+                pass
+        research.append({"question": q.get("after"), "sources": srcs})
+
+    sys2 = "\n".join([
+        "You fill in a student's own copy of a teacher's Google Doc using the web research provided.",
+        f"- Reading level: {opts.get('reading_level', 'High school')}. Write in plain, specific sentences, "
+        "like the student, first person where the doc asks about their own life.",
+        "- Put each answer right after the exact line that asks for it. 'after' must be copied EXACTLY from "
+        "one line of <doc>. Never replace the teacher's questions or directions.",
+        "- Base every factual claim on <research>; never invent facts, dates, numbers, quotes or sources.",
+        "- Keep answers short: 1-4 sentences unless the doc asks for more. Skip anything already answered.",
+        f"- Avoid these phrases: {AVOID}.",
+    ])
+    user2 = (f"<doc name=\"{doc_name}\">\n{doc_text[:15000]}\n</doc>\n\n"
+             f"<research>\n{json.dumps(research, ensure_ascii=False)[:24000]}\n</research>\n\nCall submit_edits.")
+    return call_tool(opts, sys2, user2, EDITS_TOOL, cancel).get("edits") or []
+
+
 def call_tool(opts, system, user, tool, cancel=None, max_tokens=16000, images=None, patient=True):
     """One AI call that must answer by calling `tool`; returns the tool's arguments as a dict.
     images: optional list of JPEG bytes shown to the AI before the text, in order."""

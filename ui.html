@@ -835,7 +835,7 @@ main{scroll-behavior:smooth}
               <div class="hi-files" id="hi-files"><button class="btn" id="hi-load">Show my files in this assignment</button></div>
               <div id="hi-draft" style="display:none">
                 <textarea id="hi-req" rows="2" placeholder="What should Folio add? e.g. Answer each Part I question under the question."></textarea>
-                <div class="acts"><button class="btn acc" id="hi-plan">Draft additions</button></div>
+                <div class="acts"><button class="btn acc" id="hi-research">Research &amp; fill in</button><button class="btn" id="hi-plan">Draft from this project</button></div>
               </div>
               <div id="hi-edits"></div>
               <div id="hi-review" style="display:none">
@@ -1307,7 +1307,7 @@ $("#cancel").onclick=()=>{api().cancel();toast("Cancelling…")};
 window.Folio={event(e){
   if(e.kind==="search"){S.searches++;$("#c-search").textContent=S.searches;
     const eng=(e.extra||{}).engine||"Web";logLine(eng,eng==="DuckDuckGo"?"ddg":eng==="Brave"?"br":eng==="Google"?"gg":eng==="News"?"nw":"",e.text.split(" · ").slice(1).join(" · "));}
-  else if(e.kind==="cr_progress"){$("#cr-status").textContent=e.text}
+  else if(e.kind==="cr_progress"){$("#cr-status").textContent=e.text;const hs=$("#hi-status");if(hs&&$("#handin").style.display!=="none")hs.textContent=e.text}
   else if(e.kind==="cr_closed"){$("#cr-status").textContent="Classroom window closed. Open it again to load assignments."}
   else if(e.kind==="sources"){$("#c-src").textContent=e.text}
   else if(e.kind==="thought"){logLine("Note","th",e.text)}
@@ -1775,20 +1775,31 @@ function hiDeck(){
   $("#hi-review").style.display="";$("#hi-ok").checked=false;$("#hi-write").classList.add("off");$("#hi-write").textContent="Add to my deck";
   $("#hi-status").textContent="Nothing has been added yet.";
 }
-$("#hi-plan").onclick=async()=>{
-  if(!HI.doc)return toast("Pick a doc first.",true);
-  $("#hi-plan").textContent="Drafting…";$("#hi-plan").classList.add("off");
-  const r=await api().cr_plan(S.current.folder,HI.doc.url,$("#hi-req").value.trim());
-  $("#hi-plan").textContent="Draft additions";$("#hi-plan").classList.remove("off");$("#hi-status").textContent="";
+function hiShowEdits(r){
   if(r&&r.error)return toast(r.error,true);
   HI.edits=r.edits||[]; const box=$("#hi-edits"); box.innerHTML="";
-  if(!HI.edits.length){box.innerHTML='<div class="hint" style="text-align:left">Nothing to add: the doc already looks answered.</div>';return}
+  if(!HI.edits.length){box.innerHTML='<div class="hint" style="text-align:left">Nothing to add: the doc already looks answered.</div>';$("#hi-status").textContent="";return}
   HI.edits.forEach((e,i)=>{const d=document.createElement("div");d.className="hi-edit";
     const where=e.replace?`<span class="hi-rep">Replace</span> “${esc(e.replace)}”`:`After: “${esc(e.after||"end of doc")}”`;
     d.innerHTML=`<label><input type="checkbox" checked> <span>${where}</span></label><textarea rows="3"></textarea>${e.why?`<small>${esc(e.why)}</small>`:""}`;
     d.querySelector("textarea").value=e.text; box.appendChild(d)});
   $("#hi-review").style.display="";$("#hi-ok").checked=false;$("#hi-write").classList.add("off");$("#hi-write").textContent="Write into my doc";
-  $("#hi-status").textContent="Nothing has been written yet. Edit anything you want, uncheck what you don't want, then confirm.";
+  $("#hi-status").textContent="Nothing has been written yet. Check the facts and sources, edit anything you want, uncheck what you don't want, then confirm.";
+}
+$("#hi-plan").onclick=async()=>{
+  if(!HI.doc)return toast("Pick a doc first.",true);
+  $("#hi-plan").textContent="Drafting…";$("#hi-plan").classList.add("off");
+  const r=await api().cr_plan(S.current.folder,HI.doc.url,$("#hi-req").value.trim());
+  $("#hi-plan").textContent="Draft from this project";$("#hi-plan").classList.remove("off");$("#hi-status").textContent="";
+  hiShowEdits(r);
+};
+$("#hi-research").onclick=async()=>{
+  if(!HI.doc)return toast("Pick a doc first.",true);
+  $("#hi-research").textContent="Researching…";$("#hi-research").classList.add("off");$("#hi-plan").classList.add("off");
+  $("#hi-status").textContent="Reading your doc…";
+  const r=await api().cr_research_fill(S.current.folder,HI.doc.url,$("#hi-req").value.trim());
+  $("#hi-research").textContent="Research & fill in";$("#hi-research").classList.remove("off");$("#hi-plan").classList.remove("off");
+  hiShowEdits(r);
 };
 $("#hi-ok").onchange=()=>$("#hi-write").classList.toggle("off",!$("#hi-ok").checked);
 $("#hi-write").onclick=async()=>{
