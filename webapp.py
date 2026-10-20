@@ -46,27 +46,71 @@ from flask import Flask, Response, abort, jsonify, redirect, request, send_file,
 
 import Folio  # noqa: E402
 
-OUT = os.path.join(DATA, "Folio Projects")
-Folio.DEFAULT_OUT = OUT
+USERS_DIR = os.path.join(DATA, "users")
+os.makedirs(USERS_DIR, exist_ok=True)
+Folio.DEFAULT_OUT = os.path.join(USERS_DIR, "_default", "Folio Projects")
 SERVER_KEY = "(saved on the server)"
 CLOUD_CR = os.environ.get("FOLIO_CLASSROOM") == "1"
-_load = Folio.load_settings
+
+# Each device that signs in gets its own space — its own projects, settings and (for Classroom) its own
+# signed-in browser — so sharing the link never shares your Google account or your work with other devices.
+_ctx = threading.local()
+DEFAULTS = {"provider": "Gemini", "api_key": "", "gemini_key": "", "gemini_model": "gemini-3.8-flash",
+            "brave_key": "", "model": "claude-sonnet-5-5", "theme": "Midnight"}
+
+
+def _uid():
+    return getattr(_ctx, "uid", None) or "_default"
+
+
+def _user_dir(uid=None):
+    d = os.path.join(USERS_DIR, uid or _uid())
+    os.makedirs(d, exist_ok=True)
+    return d
 
 
 def load_settings():
-    """Folio's settings, with the AI keys taken from the host's secrets."""
-    s = _load()
-    s["out_dir"] = OUT
+    """This device's own settings. The AI keys come from the host's secrets (shared, never sent to the browser)."""
+    d = _user_dir()
+    s = dict(DEFAULTS)
+    try:
+        with open(os.path.join(d, "settings.json"), encoding="utf-8") as f:
+            s.update(json.load(f))
+    except Exception:
+        pass
+    s["out_dir"] = os.path.join(d, "Folio Projects")
     if os.environ.get("GEMINI_API_KEY"):
         s["gemini_key"] = os.environ["GEMINI_API_KEY"]
     if os.environ.get("ANTHROPIC_API_KEY"):
         s["api_key"] = os.environ["ANTHROPIC_API_KEY"]
-        if not os.environ.get("GEMINI_API_KEY") and not _load().get("provider_chosen"):
+        if not os.environ.get("GEMINI_API_KEY") and not s.get("provider_chosen"):
             s["provider"] = "Claude"
     return s
 
 
+def save_settings(s):
+    d = _user_dir()
+    out = {k: v for k, v in dict(s).items() if k != "out_dir"}
+    for k, env in (("gemini_key", "GEMINI_API_KEY"), ("api_key", "ANTHROPIC_API_KEY")):
+        if os.environ.get(env):
+            out.pop(k, None)  # never write the server's shared keys into a device's file
+    with open(os.path.join(d, "settings.json"), "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=2)
+
+
+class _PerUserPath:
+    """A path that resolves into the current device's folder when opened, keeping Folio's caches separate."""
+
+    def __init__(self, name):
+        self.name = name
+
+    def __fspath__(self):
+        return os.path.join(_user_dir(), self.name)
+
+
 Folio.load_settings = load_settings
+Folio.save_settings = save_settings
+Folio.CR_CACHE = _PerUserPath("classroom_cache.json")
 
 
 # ---------------------------------------------------------------- events: the page polls for them
@@ -86,14 +130,19 @@ class Events:
 
 
 class WebApi(Folio.Api):
-    """Folio's own Api, minus the desktop-only parts, with keys never sent to the browser."""
+    """One per device: Folio's own Api, its own events and (for Classroom) its own signed-in browser."""
 
-    def __init__(self):
+    def __init__(self, uid):
+        self._uid = uid
         super().__init__()
-        self._window = EVENTS
+        self._events = Events()
+        self._window = self._events
+        self._cr = {"last": 0.0, "inflight": 0, "hash": None}
         if CLOUD_CR:
             import cloudbrowser
-            self._classroom = cloudbrowser.CloudClassroom(on_closed=lambda: self._emit("cr_closed"))
+            self._classroom = cloudbrowser.CloudClassroom(
+                profile=os.path.join(_user_dir(uid), "browser"),
+                on_closed=lambda: self._emit("cr_closed"))
 
     def get_settings(self):
         s = load_settings()
@@ -111,8 +160,20 @@ class WebApi(Folio.Api):
         return Folio.Api.save_settings(self, data) and self.get_settings()
 
 
-EVENTS = Events()
-API = WebApi()
+_users_lock = threading.Lock()
+USERS = {}
+
+
+def cur():
+    """The Api for the device making this request, created the first time that device is seen."""
+    with _users_lock:
+        uid = _uid()
+        api = USERS.get(uid)
+        if api is None:
+            api = USERS[uid] = WebApi(uid)
+        return api
+
+
 ALLOWED = {
     "get_settings", "save_settings", "generate", "cancel", "revise", "undo", "restyle", "recheck",
     "check_sources", "list_projects", "load_project", "thumbs", "edit_slide", "photo_options", "set_photo",
@@ -133,11 +194,12 @@ def _password():
 
 @app.before_request
 def gate():
+    _ctx.uid = session.get("uid")  # which device this is (set at login); drives per-device isolation
     if request.path in ("/login", "/manifest.json", "/healthz") or request.path.startswith("/icon"):
         return None
     if not _password():
         return Response("Set the APP_PASSWORD secret on the server to use Folio.", 503, mimetype="text/plain")
-    if not session.get("ok"):
+    if not session.get("ok") or not _ctx.uid:
         return (jsonify({"error": "login"}), 401) if request.path.startswith("/api/") else redirect("/login")
     return None
 
@@ -176,6 +238,8 @@ def login():
         if _password() and hmac.compare_digest(request.form.get("password", ""), _password()):
             session.permanent = True
             session["ok"] = True
+            if not session.get("uid"):  # first sign-in on this device → its own private space
+                session["uid"] = secrets.token_hex(8)
             return redirect("/")
         time.sleep(1.5)  # slows down password guessing
         err = '<div class="err">That password didn\'t work.</div>'
@@ -221,28 +285,31 @@ def call(name):
     if name not in ALLOWED:
         return jsonify({"error": "That only works in the Windows app."})
     args = request.get_json(silent=True) or []
+    api = cur()
     cr = name.startswith("cr_")
     if cr:
-        _cr_touch(+1)
+        _cr_touch(api, +1)
     try:
-        return jsonify(getattr(API, name)(*args))
+        return jsonify(getattr(api, name)(*args))
     except Exception as e:
         return jsonify({"error": str(e)[:300]})
     finally:
         if cr:
-            _cr_touch(-1)
+            _cr_touch(api, -1)
 
 
 @app.get("/api/events")
 def events():
-    items, n = EVENTS.since(int(request.args.get("since", 0)))
-    return jsonify({"events": items, "next": n, "busy": API.busy})
+    api = cur()
+    items, n = api._events.since(int(request.args.get("since", 0)))
+    return jsonify({"events": items, "next": n, "busy": api.busy})
 
 
 @app.get("/api/file")
 def file():
     path = os.path.abspath(request.args.get("path", ""))
-    if not path.startswith(os.path.abspath(OUT) + os.sep) or not os.path.isfile(path):
+    base = os.path.abspath(os.path.join(_user_dir(), "Folio Projects")) + os.sep  # only this device's files
+    if not path.startswith(base) or not os.path.isfile(path):
         abort(404)
     types_ = {".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
               ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -275,35 +342,38 @@ def import_file():
 # down once the student has been away from it for a while, giving the memory back to slide-making.
 CR_IDLE = int(os.environ.get("FOLIO_CR_IDLE") or 360)
 _cr_lock = threading.Lock()
-_cr_state = {"last": 0.0, "inflight": 0}
 
 
-def _cr_touch(delta=0):
+def _cr_touch(api, delta=0):
     with _cr_lock:
-        _cr_state["inflight"] += delta
-        _cr_state["last"] = time.time()
+        api._cr["inflight"] += delta
+        api._cr["last"] = time.time()
 
 
 def _cr_watchdog():
     while True:
         time.sleep(30)
-        try:
-            b = getattr(API._classroom, "browser", None)
-            if not (b and b.is_running()):
-                continue
-            with _cr_lock:
-                idle = _cr_state["inflight"] <= 0 and (time.time() - _cr_state["last"]) > CR_IDLE
-            if idle and not API.busy:
-                b.stop()
-        except Exception:
-            pass
+        with _users_lock:
+            apis = list(USERS.values())
+        for api in apis:  # free each device's Chrome once it's been idle, so memory goes back to generating
+            try:
+                b = getattr(api._classroom, "browser", None)
+                if not (b and b.is_running()):
+                    continue
+                with _cr_lock:
+                    idle = api._cr["inflight"] <= 0 and (time.time() - api._cr["last"]) > CR_IDLE
+                if idle and not api.busy:
+                    b.stop()
+            except Exception:
+                pass
 
 
 def _browser():
-    b = getattr(API._classroom, "browser", None)
+    api = cur()
+    b = getattr(api._classroom, "browser", None)
     if not CLOUD_CR or b is None:
         abort(404)
-    _cr_touch()
+    _cr_touch(api)
     return b
 
 
@@ -311,19 +381,17 @@ if CLOUD_CR:
     threading.Thread(target=_cr_watchdog, daemon=True).start()
 
 
-_frame_seen = {"hash": None}
-
-
 @app.get("/api/cr/frame")
 def cr_frame():
+    api = cur()
     b = _browser()
     if not b.is_running():
         abort(409)
     img = b.frame()
     h = hashlib.md5(img).hexdigest()
-    if h == _frame_seen["hash"] and request.args.get("f") != "1":
+    if h == api._cr["hash"] and request.args.get("f") != "1":
         return ("", 204)  # nothing changed since the last frame — save the bandwidth
-    _frame_seen["hash"] = h
+    api._cr["hash"] = h
     r = Response(img, mimetype="image/jpeg")
     r.headers["Cache-Control"] = "no-store"
     return r

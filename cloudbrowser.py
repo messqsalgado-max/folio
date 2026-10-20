@@ -47,7 +47,8 @@ class _Events:
 
 
 class Browser:
-    def __init__(self):
+    def __init__(self, profile=None):
+        self.profile = profile or PROFILE
         self.jobs = queue.Queue()
         self.thread = None
         self.ctx = None
@@ -70,7 +71,7 @@ class Browser:
                 args += LEAN_ARGS
                 if os.environ.get("FOLIO_SINGLE_PROCESS") == "1":  # squeezes memory harder; can be less stable
                     args += ["--single-process", "--no-zygote"]
-            kw = dict(user_data_dir=PROFILE, viewport=VIEW, user_agent=UA, locale="en-US",
+            kw = dict(user_data_dir=self.profile, viewport=VIEW, user_agent=UA, locale="en-US",
                       headless=headless, ignore_default_args=["--enable-automation"], args=args)
             # how long one screenshot is reused: short on a real PC (smooth), longer on a tiny server (CPU)
             self._frame_ttl = int(os.environ.get("FOLIO_FRAME_MS") or (200 if headless else 55)) / 1000.0
@@ -119,7 +120,7 @@ class Browser:
         with self.lock:
             if self.thread and self.thread.is_alive() and self.ctx:
                 return
-            os.makedirs(PROFILE, exist_ok=True)
+            os.makedirs(self.profile, exist_ok=True)
             self.error, self.pages, self.sessions, ready = None, {}, {}, threading.Event()
             self.thread = threading.Thread(target=self._loop, args=(ready,), daemon=True)
             self.thread.start()
@@ -264,9 +265,9 @@ class Window:
 class CloudClassroom(classroom.Classroom):
     """classroom.Classroom, with the server's Chrome in place of pywebview windows."""
 
-    def __init__(self, browser=None, on_closed=None):
+    def __init__(self, browser=None, on_closed=None, profile=None):
         super().__init__(on_closed=on_closed)
-        self.browser = browser or Browser()
+        self.browser = browser or Browser(profile=profile)
 
     def open(self, x=None, y=None):
         first = not self.browser.is_running()
