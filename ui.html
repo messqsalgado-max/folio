@@ -1063,6 +1063,7 @@ main{scroll-behavior:smooth}
         <button class="btn" data-game="tetris">Tetris</button>
         <button class="btn" data-game="mines">Minesweeper</button>
         <button class="btn" data-game="breakout">Breakout</button>
+        <button class="btn" data-game="hangman">Hangman</button>
         <span class="gm-score" id="gm-score"></span>
         <button class="btn gm-again" id="gm-again">New game</button>
       </div>
@@ -2129,7 +2130,28 @@ window.addEventListener("pywebviewready",async()=>{applySettings(await api().get
     return {start,key,tap,stop};
   }
 
-  const makers={t2048:make2048,snake:makeSnake,memory:makeMemory,tetris:makeTetris,mines:makeMines,breakout:makeBreakout};
+  function makeHangman(){
+    const words=['PLANET','PUZZLE','GALAXY','FOREST','CANVAS','SCHOOL','BUTTON','SILVER','KITTEN','BRIDGE','CASTLE','ROCKET','GARDEN','PENCIL','COFFEE','JUNGLE','SUMMER','WINTER','BEACON','CAMERA','FLIGHT','WIZARD','CIRCUS','POCKET','COOKIE','ISLAND','RIBBON','SUNSET','ORANGE','VIOLET','CIRCLE','MARBLE','STREAM','THUNDER','BLANKET','LIBRARY','COMPASS','CRYSTAL','JOURNEY','DIAMOND','CURIOUS','RAINBOW','TEACHER','CHROMEBOOK'];
+    const rows=['QWERTYUIOP','ASDFGHJKL','ZXCVBNM'];let word,used,misses,over,won;
+    function start(){word=words[Math.random()*words.length|0];used=new Set();misses=0;over=won=false;draw();}
+    function finish(){over=true;won=word.split('').every(c=>used.has(c));if(won){const wins=+(load('hangwins')||0)+1,streak=+(load('hangstreak')||0)+1;save('hangwins',wins);save('hangstreak',streak);save('hangbest',Math.max(streak,+(load('hangbest')||0)));}else save('hangstreak',0);}
+    function guess(letter){letter=(letter||'').toUpperCase();if(over||!/^[A-Z]$/.test(letter)||used.has(letter))return;used.add(letter);if(!word.includes(letter))misses++;if(misses>=8||word.split('').every(c=>used.has(c)))finish();draw();}
+    function textKey(key){if(key&&key.length===1&&/[a-z]/i.test(key))guess(key);}
+    function tap(x,y){const top=310,keyW=29,keyH=26,gap=5,rowGap=7;for(let r=0;r<rows.length;r++){const row=rows[r],width=row.length*keyW+(row.length-1)*gap,left=(S-width)/2,yy=top+r*(keyH+rowGap);if(y<yy||y>yy+keyH)continue;const col=Math.floor((x-left)/(keyW+gap));if(col>=0&&col<row.length&&x<left+width)guess(row[col]);return;}}
+    function line(x1,y1,x2,y2){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+    function draw(){ctx.clearRect(0,0,S,S);ctx.lineWidth=6;ctx.lineCap='round';ctx.strokeStyle='#8a7cf6';
+      if(misses>=1)line(58,280,198,280);if(misses>=2)line(92,280,92,52);if(misses>=3)line(92,52,210,52);if(misses>=4)line(210,52,210,82);
+      if(misses>=5){ctx.beginPath();ctx.arc(210,104,22,0,Math.PI*2);ctx.stroke();}if(misses>=6)line(210,126,210,195);if(misses>=7){line(210,144,180,174);line(210,144,240,174);}if(misses>=8){line(210,195,182,232);line(210,195,238,232);}
+      const unit=Math.min(44,(S-40)/Math.max(word.length,1)),width=unit*word.length;ctx.textAlign='center';ctx.textBaseline='middle';
+      for(let i=0;i<word.length;i++){const x=(S-width)/2+i*unit+unit/2;ctx.strokeStyle='#77809a';ctx.lineWidth=2;line(x-unit*.34,276,x+unit*.34,276);if(used.has(word[i])||over){ctx.fillStyle=over&&!won&&!used.has(word[i])?'#f26e78':'#f1f3ff';ctx.font='bold 24px system-ui';ctx.fillText(word[i],x,258);}}
+      for(let r=0;r<rows.length;r++){const row=rows[r],keyW=29,keyH=26,gap=5,width=row.length*keyW+(row.length-1)*gap,left=(S-width)/2,yy=310+r*33;
+        for(let c=0;c<row.length;c++){const letter=row[c],x=left+c*(keyW+gap);ctx.fillStyle=used.has(letter)?(word.includes(letter)?'#3d8c70':'#42495f'):'#303a55';rr(x,yy,keyW,keyH,6);ctx.fillStyle=used.has(letter)?(word.includes(letter)?'#d8fff0':'#9ba2b8'):'#f1f3ff';ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(letter,x+keyW/2,yy+keyH/2+1);}}
+      setScore(`Misses ${misses}/8  ·  Wins ${+(load('hangwins')||0)}  ·  Best streak ${+(load('hangbest')||0)}`);
+      setHint(won?'You got it! Tap New game for another word.':over?`The word was ${word}. Tap New game to try again.`:'Guess a letter — tap the keyboard or use your Chromebook keyboard.');}
+    return {start,tap,textKey};
+  }
+
+  const makers={t2048:make2048,snake:makeSnake,memory:makeMemory,tetris:makeTetris,mines:makeMines,breakout:makeBreakout,hangman:makeHangman};
   const stop=()=>{if(cur&&cur.stop)cur.stop();};
   function pick(n){stop();name=n;cur=makers[n]();document.querySelectorAll('#v-games .gm-pick [data-game]').forEach(b=>{const selected=b.dataset.game===n;b.classList.toggle('acc',selected);b.setAttribute('aria-pressed',String(selected));});cur.start();replayCanvas();}
 
@@ -2139,7 +2161,7 @@ window.addEventListener("pywebviewready",async()=>{applySettings(await api().get
   const again=document.getElementById('gm-again'); if(again)again.addEventListener('click',()=>{if(cur){cur.start();replayCanvas();}});
 
   const KD={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right',W:'up',S:'down',A:'left',D:'right'};
-  document.addEventListener('keydown',e=>{const v=document.getElementById('v-games');if(!v||!v.classList.contains('on'))return;const dir=KD[e.key];if(dir&&cur&&cur.key){e.preventDefault();cur.key(dir);}});
+  document.addEventListener('keydown',e=>{const v=document.getElementById('v-games');if(!v||!v.classList.contains('on'))return;if(cur&&cur.textKey&&e.key.length===1&&/[a-z]/i.test(e.key)){e.preventDefault();cur.textKey(e.key);return;}const dir=KD[e.key];if(dir&&cur&&cur.key){e.preventDefault();cur.key(dir);}});
   if(dpad)dpad.addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.d;if(d&&cur&&cur.key)cur.key(d);});
   let t0=null;
   cv.addEventListener('pointerdown',e=>{t0={x:e.clientX,y:e.clientY};});
