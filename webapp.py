@@ -599,7 +599,8 @@ if sock is not None:
     def _game_snapshot(room):
         return {"type": "state", "game": room["game"], "code": room["code"],
                 "players": [room["players"].get(i, {}).get("name", "Waiting…") for i in (0, 1)],
-                "board": room["board"], "turn": room["turn"], "winner": room["winner"], "draw": room["draw"]}
+                "board": room["board"], "turn": room["turn"], "winner": room["winner"], "draw": room["draw"],
+                "notice": room.get("notice", "")}
 
     def _game_broadcast(room):
         state = _game_snapshot(room)
@@ -611,9 +612,11 @@ if sock is not None:
         code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5))
         while code in _game_rooms:
             code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5))
-        board = [""] * 9 if game == "tictactoe" else [""] * 42
+        board = [""] * 9 if game == "tictactoe" else ([""] * 64 if game == "reversi" else [""] * 42)
+        if game == "reversi":
+            board[27], board[28], board[35], board[36] = "W", "B", "B", "W"
         room = {"code": code, "game": game, "board": board, "turn": 0, "winner": "", "draw": False,
-                "players": {}}
+                "players": {}, "notice": ""}
         _game_rooms[code] = room
         return room
 
@@ -630,6 +633,7 @@ if sock is not None:
         if seat != room["turn"] or room["winner"] or room["draw"] or len(room["players"]) < 2:
             return False
         board = room["board"]
+        room["notice"] = ""
         if room["game"] == "tictactoe":
             if not isinstance(move, int) or not 0 <= move < 9 or board[move]:
                 return False
@@ -637,7 +641,7 @@ if sock is not None:
             lines = ((0,1,2),(3,4,5),(6,7,8),(0,3,6),(1,4,7),(2,5,8),(0,4,8),(2,4,6))
             if any(board[a] and board[a] == board[b] == board[c] for a,b,c in lines):
                 room["winner"] = board[move]
-        else:
+        elif room["game"] == "connect4":
             if not isinstance(move, int) or not 0 <= move < 7:
                 return False
             idx = next((r * 7 + move for r in range(5, -1, -1) if not board[r * 7 + move]), None)
@@ -655,6 +659,58 @@ if sock is not None:
                 if count >= 4:
                     room["winner"] = token
                     break
+        else:  # Reversi: verify the move brackets opponent discs in at least one direction.
+            if not isinstance(move, int) or not 0 <= move < 64 or board[move]:
+                return False
+            token, opponent = ("B", "W") if seat == 0 else ("W", "B")
+            row, col = divmod(move, 8)
+            flips = []
+            for dr in (-1, 0, 1):
+                for dc in (-1, 0, 1):
+                    if not (dr or dc):
+                        continue
+                    rr, cc, ray = row + dr, col + dc, []
+                    while 0 <= rr < 8 and 0 <= cc < 8 and board[rr * 8 + cc] == opponent:
+                        ray.append(rr * 8 + cc)
+                        rr += dr; cc += dc
+                    if ray and 0 <= rr < 8 and 0 <= cc < 8 and board[rr * 8 + cc] == token:
+                        flips.extend(ray)
+            if not flips:
+                return False
+            board[move] = token
+            for idx in flips:
+                board[idx] = token
+
+            def has_move(color):
+                for index, value in enumerate(board):
+                    if value:
+                        continue
+                    r, c = divmod(index, 8)
+                    for dr in (-1, 0, 1):
+                        for dc in (-1, 0, 1):
+                            if not (dr or dc):
+                                continue
+                            rr, cc = r + dr, c + dc
+                            if not (0 <= rr < 8 and 0 <= cc < 8) or board[rr * 8 + cc] != ("W" if color == "B" else "B"):
+                                continue
+                            while 0 <= rr < 8 and 0 <= cc < 8 and board[rr * 8 + cc] == ("W" if color == "B" else "B"):
+                                rr += dr; cc += dc
+                            if 0 <= rr < 8 and 0 <= cc < 8 and board[rr * 8 + cc] == color:
+                                return True
+                return False
+
+            next_seat = 1 - seat
+            next_color = "B" if next_seat == 0 else "W"
+            if has_move(next_color):
+                room["turn"] = next_seat
+            elif has_move(token):
+                room["turn"] = seat
+                room["notice"] = "Opponent has no legal move. Play again."
+            else:
+                black, white = board.count("B"), board.count("W")
+                room["draw"] = black == white
+                room["winner"] = "Black" if black > white else "White" if white > black else ""
+            return True
         if not room["winner"] and all(board):
             room["draw"] = True
         room["turn"] = 1 - seat
@@ -853,7 +909,7 @@ if sock is not None:
                 action = data.get("type")
                 if action == "create":
                     game = data.get("game")
-                    if game not in ("tictactoe", "connect4"):
+                    if game not in ("tictactoe", "connect4", "reversi"):
                         _social_send(ws, {"type": "error", "message": "Choose a supported game."}); continue
                     with _social_lock:
                         if room:
@@ -888,8 +944,11 @@ if sock is not None:
                 elif action == "reset" and room is not None and seat is not None:
                     with _social_lock:
                         if len(room["players"]) == 2:
-                            room["board"] = [""] * (9 if room["game"] == "tictactoe" else 42)
-                            room["winner"] = ""; room["draw"] = False; room["turn"] = 1 - room["turn"]
+                            game = room["game"]
+                            room["board"] = [""] * 9 if game == "tictactoe" else ([""] * 64 if game == "reversi" else [""] * 42)
+                            if game == "reversi":
+                                room["board"][27], room["board"][28], room["board"][35], room["board"][36] = "W", "B", "B", "W"
+                            room["winner"] = ""; room["draw"] = False; room["turn"] = 1 - room["turn"]; room["notice"] = ""
                             _game_broadcast(room)
         finally:
             if room is not None and seat is not None:
