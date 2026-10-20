@@ -126,7 +126,7 @@
       L.el = d;
       const img = d.querySelector("img"), inp = d.querySelector(".keys input"), title = d.querySelector(".t");
       const urlBar = d.querySelector(".url");
-      img.decoding = "async";  // decode frames off the paint path so a new src never blocks the main thread
+      img.decoding = "sync";  // hold the current frame until the next one is decoded, so swaps never flash to blank
       let chain = Promise.resolve();
       const send = (body) => {  // over the socket when it's open, else fall back to an HTTP POST
         if (L.ws && L.ws.readyState === 1) { try { L.ws.send(JSON.stringify(body)); } catch (e) {} L.kick(); return Promise.resolve(); }
