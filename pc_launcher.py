@@ -44,6 +44,10 @@ SECRET_KEY=
 
 # Optional: set to 1 to run Chrome with no window (use this if the PC is usually locked).
 FOLIO_HEADLESS=
+
+# Optional: set to 1 to add a general Browser tab (a web browser running on this PC) for your own
+# personal devices. Leave blank to keep it off. Not for getting around a school device's filter.
+FOLIO_BROWSER_TAB=
 """
 
 

@@ -51,6 +51,8 @@ os.makedirs(USERS_DIR, exist_ok=True)
 Folio.DEFAULT_OUT = os.path.join(USERS_DIR, "_default", "Folio Projects")
 SERVER_KEY = "(saved on the server)"
 CLOUD_CR = os.environ.get("FOLIO_CLASSROOM") == "1"
+# opt-in general browser panel (a personal remote browser); needs Chrome, so it rides on the Classroom browser
+WEBTAB = CLOUD_CR and os.environ.get("FOLIO_BROWSER_TAB") == "1"
 
 # Each device that signs in gets its own space — its own projects, settings and (for Classroom) its own
 # signed-in browser — so sharing the link never shares your Google account or your work with other devices.
@@ -267,11 +269,13 @@ def _page():
             '<meta name="apple-mobile-web-app-title" content="Folio"><meta name="theme-color" content="#0A0C14">'
             '<link rel="apple-touch-icon" href="/icon-180.png"><link rel="manifest" href="/manifest.json">')
     html = html.replace("<head>", "<head>" + head, 1)
-    html = re.sub(r"(?m)^<body>", '<body class="web%s">' % (" cr" if CLOUD_CR else ""), html, count=1)  # the real tag, not a mention in a comment
+    cls = "web" + (" cr" if CLOUD_CR else "") + (" webtab" if WEBTAB else "")
+    html = re.sub(r"(?m)^<body>", '<body class="%s">' % cls, html, count=1)  # the real tag, not a mention in a comment
     with open(_asset("bridge.js"), encoding="utf-8") as f:
         bridge = f.read()
     i = html.rindex("<script>")  # the bridge must exist before Folio's own script runs
-    flags = "window.FOLIO_CR=%s;" % ("true" if CLOUD_CR else "false")
+    flags = "window.FOLIO_CR=%s;window.FOLIO_WEBTAB=%s;" % (
+        "true" if CLOUD_CR else "false", "true" if WEBTAB else "false")
     return html[:i] + "<script>" + flags + bridge + "</script>\n" + html[i:]
 
 
@@ -419,6 +423,70 @@ def cr_input():
             b.key(str(d.get("key", "")))
         elif kind == "nav":
             b.nav(str(d.get("what", "")))
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)[:200]})
+
+
+# ---------------------------------------------------------------- general browser panel (opt-in; tab "web")
+def _web_browser():
+    if not WEBTAB:
+        abort(404)
+    api = cur()
+    b = getattr(api._classroom, "browser", None)
+    if b is None:
+        abort(404)
+    _cr_touch(api)  # same Chrome as Classroom; keep it awake while in use
+    return api, b
+
+
+@app.post("/api/web/go")
+def web_go():
+    api, b = _web_browser()
+    url = (request.get_json(silent=True) or {}).get("url", "")
+    try:
+        return jsonify(b.browse(url, tab="web"))
+    except Exception as e:
+        return jsonify({"error": str(e)[:200]})
+
+
+@app.get("/api/web/frame")
+def web_frame():
+    api, b = _web_browser()
+    if not b.is_running():
+        abort(409)
+    img = b.frame(tab="web")
+    h = hashlib.md5(img).hexdigest()
+    if h == api._cr.get("webhash") and request.args.get("f") != "1":
+        return ("", 204)
+    api._cr["webhash"] = h
+    r = Response(img, mimetype="image/jpeg")
+    r.headers["Cache-Control"] = "no-store"
+    return r
+
+
+@app.get("/api/web/info")
+def web_info():
+    api, b = _web_browser()
+    return jsonify(b.info(tab="web") if b.is_running() else {"url": "", "title": "", "off": True})
+
+
+@app.post("/api/web/input")
+def web_input():
+    api, b = _web_browser()
+    d = request.get_json(silent=True) or {}
+    try:
+        kind = d.get("kind")
+        if kind == "tap":
+            b.tap(float(d["x"]), float(d["y"]), tab="web")
+        elif kind == "scroll":
+            b.scroll(float(d.get("x", 500)), float(d.get("y", 400)), float(d["dy"]), tab="web")
+        elif kind == "type":
+            b.type(str(d.get("text", ""))[:2000], tab="web")
+        elif kind == "key":
+            b.key(str(d.get("key", "")), tab="web")
+        elif kind == "nav":
+            b.nav(str(d.get("what", "")), tab="web")
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)[:200]})

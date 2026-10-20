@@ -12,6 +12,7 @@ import re
 import sys
 import threading
 import time
+import urllib.parse
 
 import classroom
 
@@ -170,53 +171,54 @@ class Browser:
     def window(self, name):
         return Window(self, name)
 
-    # ---------------------------------------------------------------- the live view
-    def frame(self):
-        """JPEG of what the main page shows right now. Google's sign-in gets a phone-sized page so it's
-        readable on the phone; everything else stays desktop-sized, like the Windows app's window.
-        A short cache means a burst of polls reuses one screenshot instead of taxing the CPU each time."""
+    # ---------------------------------------------------------------- the live view (any tab)
+    def frame(self, tab="main"):
+        """JPEG of what `tab` shows right now. Google's sign-in gets a phone-sized page so it's readable
+        on the phone; everything else stays desktop-sized. A short per-tab cache means a burst of polls
+        reuses one screenshot instead of taxing the CPU each time."""
         now = time.time()
-        cached = getattr(self, "_fcache", None)
-        if cached and now - cached[0] < getattr(self, "_frame_ttl", 0.1):
-            return cached[1]
+        cache = self.__dict__.setdefault("_fcache", {})
+        hit = cache.get(tab)
+        if hit and now - hit[0] < getattr(self, "_frame_ttl", 0.1):
+            return hit[1]
 
         def go():
-            p = self._page("main")
+            p = self._page(tab)
             size = SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW
             if p.viewport_size != size:
                 p.set_viewport_size(size)
             return p.screenshot(type="jpeg", quality=55)
         img = self.run(go, timeout=20)
-        self._fcache = (time.time(), img)
+        cache[tab] = (time.time(), img)
         return img
 
-    def info(self):
+    def info(self, tab="main"):
         def go():
-            p = self._page("main")
+            p = self._page(tab)
             return {"url": p.url, "title": p.title()}
         return self.run(go, timeout=10)
 
-    def tap(self, x, y):
-        self.run(lambda: self._page("main").mouse.click(x, y))
+    def tap(self, x, y, tab="main"):
+        self.run(lambda: self._page(tab).mouse.click(x, y))
 
-    def scroll(self, x, y, dy):
+    def scroll(self, x, y, dy, tab="main"):
         def go():
-            p = self._page("main")
+            p = self._page(tab)
             p.mouse.move(x, y)
             p.mouse.wheel(0, dy)
         self.run(go)
 
-    def type(self, text):
-        self.run(lambda: self._cdp("main", "Input.insertText", {"text": text}))
+    def type(self, text, tab="main"):
+        self.run(lambda: self._cdp(tab, "Input.insertText", {"text": text}))
 
-    def key(self, key):
+    def key(self, key, tab="main"):
         """One key or shortcut from the live view, e.g. "Enter", "Shift+Tab", "Control+a"."""
         if KEY_RE.match(key or ""):
-            self.run(lambda: self._page("main").keyboard.press(key))
+            self.run(lambda: self._page(tab).keyboard.press(key))
 
-    def nav(self, what):
+    def nav(self, what, tab="main"):
         def go():
-            p = self._page("main")
+            p = self._page(tab)
             if what == "back":
                 p.go_back(wait_until="commit")
             elif what == "forward":
@@ -224,8 +226,19 @@ class Browser:
             elif what == "reload":
                 p.reload(wait_until="commit")
             elif what == "home":
-                p.goto(classroom.TODO["assigned"], wait_until="commit")
+                p.goto(classroom.TODO["assigned"] if tab == "main" else "https://www.google.com", wait_until="commit")
         self.run(go, timeout=40)
+
+    def browse(self, url, tab="web"):
+        """Open a URL in a general browsing tab (a personal remote browser, separate from Classroom)."""
+        url = (url or "").strip()
+        if not re.match(r"^https?://", url):
+            if "." in url.split("/")[0] and " " not in url:
+                url = "https://" + url               # looked like a domain
+            else:
+                url = "https://www.google.com/search?q=" + urllib.parse.quote(url)  # a search
+        self.run(lambda: self._page(tab).goto(url, wait_until="commit", timeout=30000), timeout=40)
+        return {"url": url}
 
 
 class Window:

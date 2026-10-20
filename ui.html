@@ -543,6 +543,7 @@ details{border-radius:14px;background:var(--glass-3);border:1px dashed var(--lin
 .web:not(.cr) .card:has(> .cb#hm-next),.web:not(.cr) #imported{display:none!important}
 .web .hm-tiles{grid-template-columns:1fr}
 .web-only{display:none}.web .web-only{display:revert}
+.webtab-only{display:none!important}.webtab .webtab-only{display:flex!important}
 
 @media (max-width: 760px){
   html,body{font-size:15px}
@@ -608,6 +609,7 @@ details{border-radius:14px;background:var(--glass-3);border:1px dashed var(--lin
       <button data-v="classroom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="13" rx="2"/><circle cx="12" cy="10.5" r="2.2"/><path d="M8 18c.6-2.2 2.1-3.3 4-3.3s3.4 1.1 4 3.3"/></svg>Classroom</button>
       <button data-v="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Library</button>
       <button data-v="games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4"/><circle cx="15.5" cy="11" r="1.1"/><circle cx="18" cy="13.5" r="1.1"/></svg>Games</button>
+      <button data-v="browser" class="webtab-only"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18"/></svg>Browser</button>
       <button data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
     </nav>
     <div class="spacer"></div>
@@ -1023,6 +1025,12 @@ details{border-radius:14px;background:var(--glass-3);border:1px dashed var(--lin
           <div class="web-only hint" style="text-align:left;margin-top:14px">Folio web · AI keys set on the server stay there and are never sent to this browser. <a class="ghost" href="/logout">Sign out</a></div>
         </div>
       </div>
+    </section>
+
+    <!-- BROWSER (opt-in personal remote browser; the live panel is an overlay from bridge.js) -->
+    <section class="view" id="v-browser">
+      <div class="res-top"><div><h1>Browser</h1><div class="sub">A web browser running on your PC. For your own personal devices — not for getting around a school filter.</div></div></div>
+      <button class="btn acc" id="wb-open" style="margin-top:4px">Open browser</button>
     </section>
 
     <!-- GAMES -->

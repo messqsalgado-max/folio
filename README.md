@@ -19,6 +19,9 @@ Keep the window open (closing it takes Folio offline). The link changes each tim
 projects and Classroom sign-in stay on the PC between runs. If the PC is usually locked, set
 `FOLIO_HEADLESS=1` in folio.env so Chrome runs without a window.
 
+Optional **Browser** tab — a general web browser running on the PC, for your own personal devices: set
+`FOLIO_BROWSER_TAB=1` in folio.env. It's off by default. Not for getting around a school device's filter.
+
 ## Full Folio with Classroom: GitHub Codespaces (free)
 
 The Codespace runs Folio plus a real Chrome. Open Folio's Classroom tab and tap **Open Classroom**:
