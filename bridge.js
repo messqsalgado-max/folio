@@ -171,13 +171,30 @@
       };
       L.img = img; L.title = title; L.urlBar = urlBar;
     };
+    L.beginStream = async function () {
+      // wait until Chrome is actually up (it may take a few seconds to launch) before judging the stream
+      for (let i = 0; i < 45 && L.on && L.useStream; i++) {
+        try { const info = await fetch(cfg.base + "/info", {credentials: "same-origin"}).then(r => r.json()); if (!info.off) break; } catch (e) {}
+        await new Promise(r => setTimeout(r, 400));
+      }
+      if (!L.on || !L.useStream) return;
+      L.img.src = cfg.base + "/stream?t=" + Date.now();
+      // if no frame renders soon (e.g. a proxy like Cloudflare buffers the stream), fall back to polling
+      clearTimeout(L._fb);
+      L._fb = setTimeout(() => { if (L.on && L.useStream && !L.img.naturalWidth) L.fallback(); }, 3000);
+      L.img.onerror = () => { if (L.useStream) L.fallback(); };
+    };
+    L.fallback = function () {
+      L.useStream = false; clearTimeout(L._fb); L.img.onerror = null;
+      if ((L.img.src || "").includes("/stream")) L.img.src = "";  // drop the stream connection; the loop polls now
+      L.fast = 8; L.idle = 0;
+    };
     L.open = function () {
       if (!L.el) L.build();
       L.el.classList.add("on");
       if (L.el.classList.contains("kb") && !cfg.address) L.sink.focus();
-      if (cfg.stream && (!L.img.src || !L.img.src.includes("/stream"))) {
-        L.img.src = cfg.base + "/stream?t=" + Date.now();  // continuous MJPEG — much smoother than polling
-      }
+      if (L.useStream === undefined) L.useStream = !!cfg.stream;
+      if (L.useStream) L.beginStream();
       if (!L.on) { L.on = true; L.fast = 0; L.idle = 0; L.loop(); }
       if (cfg.address) {  // Browser tab: start Chrome + load a home page if it's not already on one
         fetch(cfg.base + "/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
@@ -188,12 +205,12 @@
         }).catch(() => {});
       }
     };
-    L.close = function () { L.on = false; L.el && L.el.classList.remove("on"); if (cfg.stream && L.img) L.img.src = ""; };
+    L.close = function () { L.on = false; L.el && L.el.classList.remove("on"); if (L.img && (L.img.src || "").includes("/stream")) L.img.src = ""; };
     L.kick = function () { L.fast = 8; L.idle = 0; };
     L.loop = async function () {
       let n = 0;
       while (L.on) {
-        if (cfg.stream) {  // frames arrive via the <img> MJPEG stream; just keep the address bar current
+        if (L.useStream) {  // frames arrive via the <img> MJPEG stream; just keep the address bar current
           fetch(cfg.base + "/info", {credentials: "same-origin"}).then(r => r.json()).then(i => {
             if (L.urlBar && document.activeElement !== L.urlBar) L.urlBar.value = i.url || ""; }).catch(() => {});
           await new Promise(r => setTimeout(r, 500));
@@ -212,8 +229,8 @@
             if (L.urlBar && document.activeElement !== L.urlBar) L.urlBar.value = i.url || ""; }).catch(() => {});
         } catch (e) {}
         L.idle = changed ? 0 : Math.min(L.idle + 1, 12);
-        let delay = changed ? 70 : Math.min(500, 110 + L.idle * 40);
-        if (L.fast > 0) { L.fast--; delay = 55; }
+        let delay = changed ? 45 : Math.min(500, 90 + L.idle * 40);
+        if (L.fast > 0) { L.fast--; delay = 35; }
         await new Promise(r => setTimeout(r, delay));
       }
     };
