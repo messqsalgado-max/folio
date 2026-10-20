@@ -609,7 +609,7 @@ if sock is not None:
                 if img and img != last:
                     last = img
                     ws.send(img)
-                    delay = max(0.001, frame_interval - (time.perf_counter() - frame_started))
+                    delay = max(0, frame_interval - (time.perf_counter() - frame_started))
                 else:
                     delay = min(delay * 1.5, 0.12)
                 if time.time() - last_info > 1:
@@ -661,7 +661,7 @@ if sock is not None:
                 if img and img != last:
                     last = img
                     ws.send(img)
-                    delay = max(0.001, frame_interval - (time.perf_counter() - frame_started))
+                    delay = max(0, frame_interval - (time.perf_counter() - frame_started))
                 else:
                     delay = min(delay * 1.5, 0.12)
                 if time.time() - last_info > 1:  # keep the address bar current

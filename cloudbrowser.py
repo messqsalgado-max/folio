@@ -6,6 +6,7 @@ through a live view on their phone (screenshots out, taps and typing in); Folio'
 Playwright's sync API must stay on one thread, so every browser call goes through a worker thread.
 """
 
+import base64
 import os
 import queue
 import re
@@ -199,13 +200,18 @@ class Browser:
         return img
 
     def shot(self, tab="main", quality=50):
-        """A fresh screenshot with no cache — for the continuous MJPEG stream (lower quality = faster)."""
+        """A fresh screenshot for the live stream; use direct CDP capture to minimize frame overhead."""
         def go():
             p = self._page(tab)
             size = self._live_viewports.get(tab) or (SIGNIN_VIEW if "accounts.google.com" in p.url else VIEW)
             if p.viewport_size != size:
                 p.set_viewport_size(size)
-            return p.screenshot(type="jpeg", quality=quality)
+            try:
+                frame = self.sessions[tab].send("Page.captureScreenshot", {
+                    "format": "jpeg", "quality": quality, "fromSurface": True})
+                return base64.b64decode(frame["data"])
+            except Exception:
+                return p.screenshot(type="jpeg", quality=quality)
         return self.run(go, timeout=20)
 
     def set_live_viewport(self, width, height, tab="main"):

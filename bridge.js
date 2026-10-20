@@ -94,7 +94,7 @@
       const mobile = window.innerWidth <= 760;
       const size = mobile ? {width: 720, height: 1280} : {
         width: Math.min(1600, Math.max(800, window.innerWidth)),
-        height: Math.min(1100, Math.max(600, window.innerHeight))
+        height: Math.min(1100, Math.max(480, window.innerHeight - 96))
       };
       const body = JSON.stringify({kind: "viewport", ...size});
       if (L.ws && L.ws.readyState === 1) {
