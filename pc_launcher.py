@@ -6,19 +6,30 @@ First run makes a settings file (folio.env) next to this script. Fill in your pa
 save, and run start-folio.bat again. Keep the window that opens; closing it takes Folio offline.
 """
 
+import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
+import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENV_FILE = os.path.join(HERE, "folio.env")
 CF = os.path.join(HERE, "cloudflared.exe")
 CF_URL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
 PORT = os.environ.get("PORT") or "7860"
+
+REPO = "messqsalgado-max/folio"
+ZIP_URL = "https://codeload.github.com/%s/zip/refs/heads/main" % REPO
+API_URL = "https://api.github.com/repos/%s/commits/main" % REPO
+VERSION_FILE = os.path.join(HERE, ".version")
+# your own stuff — never overwritten or deleted by an update
+KEEP = {"folio.env", "folio-data", "cloudflared.exe", ".chromium-ok", ".version"}
 
 TEMPLATE = """# Fill these in, save this file, then run start-folio.bat again.
 
@@ -116,6 +127,65 @@ def ensure_browser():
         return False
 
 
+def _latest_sha(timeout=5):
+    try:
+        req = urllib.request.Request(API_URL, headers={"Accept": "application/vnd.github.sha",
+                                                        "User-Agent": "folio-launcher"})
+        return urllib.request.urlopen(req, timeout=timeout).read().decode().strip()
+    except Exception:
+        try:
+            req = urllib.request.Request(API_URL, headers={"User-Agent": "folio-launcher"})
+            return json.load(urllib.request.urlopen(req, timeout=timeout)).get("sha", "")
+        except Exception:
+            return ""
+
+
+def _saved_sha():
+    try:
+        return open(VERSION_FILE, encoding="utf-8").read().strip()
+    except Exception:
+        return ""
+
+
+def update():
+    print()
+    say("Checking for the latest Folio…")
+    tmp = os.path.join(tempfile.gettempdir(), "folio-update.zip")
+    try:
+        urllib.request.urlretrieve(ZIP_URL, tmp)
+    except Exception as e:
+        say("Couldn't download the update:", e)
+        return False
+    try:
+        with zipfile.ZipFile(tmp) as z:
+            root = z.namelist()[0].split("/")[0] + "/"  # e.g. "folio-main/"
+            n = 0
+            for info in z.infolist():
+                if info.is_dir():
+                    continue
+                rel = info.filename[len(root):] if info.filename.startswith(root) else info.filename
+                if not rel or rel.split("/")[0] in KEEP:
+                    continue
+                dest = os.path.join(HERE, *rel.split("/"))
+                os.makedirs(os.path.dirname(dest) or HERE, exist_ok=True)
+                with z.open(info) as src, open(dest, "wb") as out:
+                    shutil.copyfileobj(src, out)
+                n += 1
+        with open(VERSION_FILE, "w", encoding="utf-8") as f:
+            f.write(_latest_sha() or "updated")
+        say("Updated %d files. Your password, projects and sign-in were kept." % n)
+        say("Now run start-folio.bat to launch the new version.")
+        return True
+    except Exception as e:
+        say("Update failed:", e)
+        return False
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+
 def ensure_cloudflared():
     if os.path.isfile(CF):
         return True
@@ -140,6 +210,11 @@ def wait_up(timeout=90):
 
 
 def main():
+    if "--update" in sys.argv:
+        update()
+        input("Press Enter to close.")
+        return
+
     env = load_env()
     if not env:
         input("Press Enter to close.")
@@ -147,6 +222,15 @@ def main():
     if not ensure_deps() or not ensure_cloudflared():
         input("Press Enter to close.")
         return
+
+    latest = _latest_sha(3)  # quick, best-effort check
+    if latest and _saved_sha() and latest != _saved_sha():
+        say("💡 A newer version of Folio is available — close this and run update-folio.bat.")
+    elif latest and not _saved_sha():
+        try:
+            open(VERSION_FILE, "w", encoding="utf-8").write(latest)  # remember where we are now
+        except Exception:
+            pass
 
     os.environ.update(env)
     os.environ.update(FOLIO_CLASSROOM="1", HOST="127.0.0.1", PORT=PORT,
