@@ -356,6 +356,7 @@ def import_file():
 # ---------------------------------------------------------------- Classroom and personal-browser lifecycles
 # Chrome runs only while its feature is in use and is shut down after idle time.
 CR_IDLE = int(os.environ.get("FOLIO_CR_IDLE") or 360)
+CR_STREAM_QUALITY = 55
 _cr_lock = threading.Lock()
 
 
@@ -428,7 +429,7 @@ def cr_frame():
     b = _browser()
     if not b.is_running():
         abort(409)
-    img = b.frame(quality=68, cache_ttl=0)
+    img = b.frame(quality=CR_STREAM_QUALITY, cache_ttl=0)
     h = hashlib.md5(img).hexdigest()
     if h == api._cr["hash"] and request.args.get("f") != "1":
         return ("", 204)  # nothing changed since the last frame — save the bandwidth
@@ -600,7 +601,7 @@ if sock is not None:
         try:
             while not stop.is_set():
                 frame_started = time.perf_counter()
-                img = b.shot(quality=68)
+                img = b.shot(quality=CR_STREAM_QUALITY)
                 if img and img != last:
                     last = img
                     ws.send(img)
