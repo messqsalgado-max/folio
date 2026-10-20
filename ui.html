@@ -569,8 +569,9 @@ main{scroll-behavior:smooth}
   .side{position:fixed;z-index:40;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));top:auto;height:auto;
     margin:0;padding:6px;border-radius:24px;flex-direction:row}
   .side .brand,.side .spacer,.side .palette-hint,.side .keychip,.side .mode,.nav-glow{display:none!important}
-  .nav{flex-direction:row;justify-content:space-around;width:100%;gap:0}
-  .nav button{flex:1;flex-direction:column;gap:3px;padding:8px 2px;font-size:10.5px;justify-content:center;text-align:center;border-radius:16px}
+  .nav{flex-direction:row;justify-content:flex-start;width:100%;gap:0;overflow-x:auto;scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
+  .nav button{flex:0 0 66px;flex-direction:column;gap:3px;padding:8px 2px;font-size:10.5px;justify-content:center;text-align:center;border-radius:16px}
   .nav button svg{width:21px;height:21px}
   .nav button.on{background:var(--glass-2);box-shadow:var(--shadow)}
   /* one column everywhere */
@@ -626,6 +627,7 @@ main{scroll-behavior:smooth}
       <button data-v="classroom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="13" rx="2"/><circle cx="12" cy="10.5" r="2.2"/><path d="M8 18c.6-2.2 2.1-3.3 4-3.3s3.4 1.1 4 3.3"/></svg>Classroom</button>
       <button data-v="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Library</button>
       <button data-v="games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4"/><circle cx="15.5" cy="11" r="1.1"/><circle cx="18" cy="13.5" r="1.1"/></svg>Games</button>
+      <button data-v="typewriter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v10H4zM7 10h.01M10 10h.01M13 10h.01M16 10h.01M7 13h.01M10 13h.01M13 13h.01M16 13h.01M8 17v-2h8v2"/><path d="M6 4h12"/></svg>Typewriter</button>
       <button data-v="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.8 8.8 0 0 1-3.8-.8L4 20l1.1-3.4A7.2 7.2 0 0 1 4 12c0-4.2 3.6-7.5 8-7.5s8 2.8 8 7z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>Chat room</button>
       <button data-v="browser" class="webtab-only"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18"/></svg>Browser</button>
       <button data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
@@ -1091,6 +1093,30 @@ main{scroll-behavior:smooth}
         <form class="chat-compose" id="chat-form"><input id="chat-text" maxlength="400" placeholder="Message the lobby…" autocomplete="off" aria-label="Message"><button class="btn acc" type="submit">Send</button></form>
       </article>
     </section>
+
+    <!-- TYPEWRITER -->
+    <section class="view" id="v-typewriter">
+      <div class="res-top"><div><h1>Typewriter</h1><div class="sub">A focused typing desk with a natural pace, right inside Folio.</div></div><span class="tw-local">Saved on this device</span></div>
+      <div class="tw-note">This page types your text onto its paper preview. It doesn’t control other desktop apps.</div>
+      <div class="tw-layout">
+        <article class="card tw-card tw-input-card">
+          <div class="tw-card-head"><div><h2>Your text</h2><span id="tw-count">0 characters · 0 words</span></div><button class="ghost" id="tw-clear">Clear</button></div>
+          <textarea id="tw-source" maxlength="50000" placeholder="Write or paste something to type…" spellcheck="true"></textarea>
+          <div class="tw-options">
+            <label class="tw-setting">Preset<select id="tw-preset"><option value="slow">Slow · 30 WPM</option><option value="medium" selected>Medium · 52 WPM</option><option value="fast">Fast · 90 WPM</option><option value="custom">Custom</option></select></label>
+            <label class="tw-setting tw-range">Speed <output id="tw-speed-label">52 WPM</output><input id="tw-speed" type="range" min="10" max="150" value="52"></label>
+            <label class="tw-setting tw-range">Natural variation <output id="tw-variation-label">35%</output><input id="tw-variation" type="range" min="0" max="100" value="35"></label>
+            <label class="tw-check"><input id="tw-natural" type="checkbox" checked>Natural pauses at words and punctuation</label>
+            <label class="tw-setting tw-countdown">Countdown<select id="tw-countdown"><option>3</option><option>5</option><option>8</option></select></label>
+          </div>
+          <div class="tw-actions"><button class="btn acc" id="tw-start">Start typing</button><button class="btn" id="tw-pause" disabled>Pause</button><button class="btn" id="tw-stop" disabled>Stop</button></div>
+          <div class="tw-progress"><div class="tw-progress-meta"><span id="tw-status" aria-live="polite">Ready</span><span id="tw-progress-label">0%</span></div><div class="tw-track"><i id="tw-progress-bar"></i></div></div>
+        </article>
+        <article class="card tw-paper-card"><div class="tw-card-head"><div><h2>Paper</h2><span>Your text appears here as it types</span></div><div class="tw-paper-actions"><button class="ghost" id="tw-copy">Copy</button><button class="ghost" id="tw-download">Save .txt</button></div></div>
+          <div class="tw-paper-wrap"><pre id="tw-paper" aria-live="off"></pre><span class="tw-cursor" id="tw-cursor" aria-hidden="true"></span></div>
+        </article>
+      </div>
+    </section>
   </main>
 </div>
 <style>
@@ -1118,8 +1144,10 @@ main{scroll-behavior:smooth}
 #v-games .gm-dpad button{all:unset;cursor:pointer;width:58px;height:48px;display:inline-grid;place-items:center;
   font-size:20px;border-radius:14px;background:var(--glass-2);border:1px solid var(--line2);box-shadow:var(--shadow)}
 .mp-card{margin-top:26px;padding:20px}.mp-top,.mp-roomline,.chat-head{display:flex;align-items:center;justify-content:space-between;gap:16px}.mp-top h2{margin:0 0 4px;font-size:19px}.mp-top .sub{margin:0;max-width:580px}.mp-live{font-size:12px;color:var(--muted);white-space:nowrap}.mp-controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:18px}.mp-field{display:grid;gap:5px;min-width:145px;font-size:12px;color:var(--muted)}.mp-field input,.mp-field select{min-width:0;width:100%;padding:9px 11px;border-radius:10px}.mp-code-field{max-width:155px}.mp-controls>.btn{margin-bottom:0}.mp-play{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}.mp-roomline{justify-content:flex-start;flex-wrap:wrap}.mp-roomline #mp-turn{margin-left:auto;color:var(--muted);font-size:13px}.mp-roomline #mp-room-code{letter-spacing:.15em;color:var(--accent)}.mp-players{display:flex;justify-content:center;gap:14px;color:var(--muted);font-size:13px;margin:12px 0}.mp-board{display:grid;gap:6px;margin:14px auto;max-width:420px;aspect-ratio:1}.mp-board.tictactoe{grid-template:repeat(3,1fr)/repeat(3,1fr)}.mp-board.connect4{grid-template:repeat(6,1fr)/repeat(7,1fr);max-width:490px;aspect-ratio:7/6;padding:10px;border-radius:18px;background:var(--accent-soft)}.mp-cell{all:unset;cursor:pointer;display:grid;place-items:center;min-width:0;border-radius:12px;background:var(--glass-2);font-size:clamp(28px,8vw,64px);font-weight:750;transition:transform .14s,background .18s}.mp-cell:hover:not(:disabled){transform:scale(.97);background:var(--accent-soft)}.mp-cell:disabled{cursor:default}.mp-board.connect4 .mp-cell{border-radius:50%;font-size:0;background:var(--card);box-shadow:inset 0 2px 8px #0002}.mp-board.connect4 .mp-cell.red{background:#f26e78;box-shadow:0 0 14px #f26e7850}.mp-board.connect4 .mp-cell.yellow{background:#f2cb5d;box-shadow:0 0 14px #f2cb5d50}.mp-board .mark-x{color:#9e91ff}.mp-board .mark-o{color:#64d9cd}#mp-rematch{display:flex;margin:12px auto 0}.chat-card{max-width:860px;min-height:min(70vh,760px);padding:18px;display:flex;flex-direction:column}.chat-head{justify-content:flex-start;margin-bottom:14px}.chat-head .mp-field{max-width:220px}.chat-messages{height:min(56vh,570px);min-height:260px;overflow:auto;display:flex;flex-direction:column;gap:9px;padding:14px;border-radius:14px;background:var(--glass-2)}.chat-message{max-width:min(82%,620px);padding:9px 12px;border-radius:13px;background:var(--card);overflow-wrap:anywhere;animation:chat-in .2s ease-out}.chat-message b{font-size:12px;color:var(--accent)}.chat-message time{font-size:10px;color:var(--muted);margin-left:8px}.chat-message p{margin:3px 0 0;white-space:pre-wrap}.chat-compose{display:flex;gap:9px;margin-top:12px}.chat-compose input{min-width:0;flex:1;padding:11px 13px;border-radius:12px}.chat-compose .btn{margin:0}@keyframes chat-in{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
+.tw-local{font-size:12px;color:var(--muted)}.tw-note{margin:-4px 0 16px;color:var(--muted);font-size:13px}.tw-layout{display:grid;grid-template-columns:minmax(300px,.95fr) minmax(340px,1.05fr);gap:16px;align-items:stretch}.tw-card{padding:18px;min-width:0}.tw-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.tw-card-head h2{font-size:16px;margin:0 0 3px}.tw-card-head span{font-size:11px;color:var(--muted)}.tw-card-head button{margin:0}.tw-input-card{display:flex;flex-direction:column}.tw-input-card textarea{width:100%;min-height:200px;flex:1;resize:vertical;padding:14px;border-radius:13px;background:var(--field);font:14px/1.7 ui-monospace,"Cascadia Code",monospace}.tw-options{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin:16px 0}.tw-setting{display:grid;gap:6px;font-size:12px;color:var(--muted)}.tw-setting select{padding:8px 10px;border-radius:9px}.tw-setting output{font-size:11px;color:var(--ink)}.tw-range input{width:100%;accent-color:var(--accent)}.tw-check{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}.tw-check input{accent-color:var(--accent)}.tw-actions{display:flex;gap:8px;flex-wrap:wrap}.tw-actions .btn{margin:0}.tw-actions .btn:disabled{opacity:.45;cursor:not-allowed}.tw-progress{margin-top:16px}.tw-progress-meta{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:11px;margin-bottom:7px}.tw-track{height:5px;background:var(--line2);border-radius:99px;overflow:hidden}.tw-track i{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .16s linear}.tw-paper-card{display:flex;flex-direction:column}.tw-paper-actions{display:flex;gap:2px}.tw-paper-wrap{position:relative;flex:1;min-height:390px;max-height:68vh;overflow:auto;padding:28px clamp(18px,4vw,42px);border-radius:12px;background-color:#f7f0df;background-image:repeating-linear-gradient(transparent 0,transparent 31px,rgba(108,127,156,.17) 32px);box-shadow:inset 0 0 32px #876c3520;color:#302d29}.tw-paper-wrap #tw-paper{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:15px/2 ui-monospace,"Cascadia Code",monospace;min-height:100%;color:inherit}.tw-paper-wrap.running #tw-paper::after{content:"▍";display:inline;color:#8b7cf6;animation:tw-blink .9s steps(1) infinite}@keyframes tw-blink{50%{opacity:0}}
 @media (hover:none){#v-games .gm-dpad{display:block}}
-@media (max-width:650px){.mp-card{padding:15px}.mp-controls .mp-field{flex:1 1 130px}.chat-card{padding:12px}.mp-board{max-width:min(88vw,420px)}.mp-board.connect4{max-width:min(90vw,490px)}}
+@media (max-width:850px){.tw-layout{grid-template-columns:1fr}.tw-paper-wrap{min-height:280px;max-height:55vh}}
+@media (max-width:650px){.mp-card{padding:15px}.mp-controls .mp-field{flex:1 1 130px}.chat-card{padding:12px}.mp-board{max-width:min(88vw,420px)}.mp-board.connect4{max-width:min(90vw,490px)}.tw-card{padding:14px}.tw-paper-wrap{padding:22px 18px}.tw-paper-actions button{padding:6px 8px;font-size:11px}}
 @media (prefers-reduced-motion: reduce){#gm-canvas,#gm-canvas:hover{transition:none;transform:none}#gm-canvas.gm-enter,#v-games .gm-score.score-pop,.chat-message{animation:none!important}}
 </style>
 <div class="toast" id="toast"></div>
@@ -1774,6 +1802,7 @@ function palCommands(){
     {i:"C",t:"Classroom: load my assignments",k:"Classroom",run:go("classroom",()=>$("#cr-load").click())},
     {i:"↗",t:"Open Classroom window",k:"Classroom",run:()=>api().cr_open()},
     {i:"▤",t:"Library",k:"Projects",run:go("library")},
+    {i:"⌨",t:"Typewriter",k:"Tools",run:go("typewriter")},
     {i:"△",t:"Google Drive",k:"Drive",run:go("drive")},
     {i:"⚙",t:"Settings",k:"Settings",run:go("settings")},
     {i:"☀",t:"Appearance: Light",k:"Theme",run:()=>applyMode("light")},
@@ -1808,6 +1837,70 @@ document.addEventListener("keydown",e=>{
 });
 
 window.addEventListener("pywebviewready",async()=>{applySettings(await api().get_settings());loadHome()});
+
+/* ================= Typewriter page ================= */
+(function(){
+  const $id=id=>document.getElementById(id),source=$id('tw-source');if(!source)return;
+  const paper=$id('tw-paper'),wrap=$id('tw-paper').parentElement,speed=$id('tw-speed'),variation=$id('tw-variation');
+  const presets={slow:{wpm:30,variation:65,word:150,comma:450,sentence:1300,line:2600,think:6},medium:{wpm:52,variation:45,word:80,comma:250,sentence:700,line:1500,think:3},fast:{wpm:90,variation:30,word:30,comma:120,sentence:350,line:800,think:1}};
+  let phase='ready',resumePhase='',timer=null,due=0,remaining=0,nextTask=null,content='',index=0,activeNode=null,preset=presets.medium,saveTextTimer=null;
+  const setStatus=text=>$id('tw-status').textContent=text;
+  const setProgress=()=>{const pct=content.length?Math.floor(index/content.length*100):0;$id('tw-progress-label').textContent=pct+'%';$id('tw-progress-bar').style.width=pct+'%';};
+  const words=text=>(text.trim().match(/\S+/g)||[]).length;
+  function refreshCount(){const text=source.value;$id('tw-count').textContent=`${text.length.toLocaleString()} characters · ${words(text).toLocaleString()} words`;clearTimeout(saveTextTimer);saveTextTimer=setTimeout(()=>{try{localStorage.setItem('folio-typewriter-text',text)}catch(_){}},250)}
+  function controls(){const busy=phase==='countdown'||phase==='typing'||phase==='paused';$id('tw-start').disabled=busy;$id('tw-pause').disabled=!busy;$id('tw-pause').textContent=phase==='paused'?'Resume':'Pause';$id('tw-stop').disabled=!busy;source.disabled=busy;wrap.classList.toggle('running',phase==='typing');}
+  function schedule(fn,ms){clearTimeout(timer);nextTask=fn;remaining=Math.max(0,ms);due=performance.now()+remaining;timer=setTimeout(()=>{timer=null;remaining=0;nextTask=null;fn()},remaining);}
+  function setPreset(name){if(!presets[name])return;preset=presets[name];speed.value=preset.wpm;variation.value=preset.variation;$id('tw-speed-label').textContent=preset.wpm+' WPM';$id('tw-variation-label').textContent=preset.variation+'%';$id('tw-natural').checked=true;}
+  try{source.value=localStorage.getItem('folio-typewriter-text')||''}catch(_){}refreshCount();
+  $id('tw-preset').addEventListener('change',e=>{if(e.target.value!=='custom')setPreset(e.target.value)});
+  speed.addEventListener('input',()=>{$id('tw-preset').value='custom';$id('tw-speed-label').textContent=speed.value+' WPM'});
+  variation.addEventListener('input',()=>{$id('tw-preset').value='custom';$id('tw-variation-label').textContent=variation.value+'%'});
+  $id('tw-natural').addEventListener('change',e=>{variation.disabled=!e.target.checked});
+  source.addEventListener('input',refreshCount);
+  $id('tw-clear').addEventListener('click',()=>{source.value='';refreshCount();source.focus()});
+  function start(){
+    if(phase==='countdown'||phase==='typing'||phase==='paused')return;
+    content=source.value;if(!content.trim()){setStatus('Add some text first.');source.focus();return;}
+    preset=presets[$id('tw-preset').value]||preset;index=0;activeNode=null;paper.replaceChildren();setProgress();
+    phase='countdown';let count=Number($id('tw-countdown').value)||3;setStatus(`Ready in ${count}…`);controls();
+    const tick=()=>{count--;if(count<=0){phase='typing';setStatus('Typing…');controls();schedule(typeOne,0)}else{setStatus(`Ready in ${count}…`);schedule(tick,1000)}};
+    schedule(tick,1000);
+  }
+  function delayFor(ch){
+    const base=12000/Math.max(10,Number(speed.value)||52),natural=$id('tw-natural').checked;
+    let delay=base;
+    if(natural){const spread=(Number(variation.value)||0)/100;delay=Math.max(base*.25,base*(1+(Math.random()*2-1)*spread*.8));
+      const jitter=ms=>ms*(.6+Math.random()*.8);
+      if(ch===' ')delay+=jitter(preset.word);
+      if(/[.!?]/.test(ch))delay+=jitter(preset.sentence);
+      else if(/[,;:]/.test(ch))delay+=jitter(preset.comma);
+      if(ch==='\n')delay+=jitter(preset.line);
+      if(ch===' '&&Math.random()<preset.think/100)delay+=600+Math.random()*1600;
+    }
+    return delay;
+  }
+  function typeOne(){
+    if(phase!=='typing')return;
+    if(index>=content.length){phase='ready';setProgress();setStatus('Finished ✓');controls();return;}
+    const ch=content[index++];
+    if(!activeNode){activeNode=document.createTextNode('');paper.append(activeNode)}
+    activeNode.data+=ch;if(ch===' '||ch==='\n'||ch==='\t')activeNode=null;
+    setProgress();
+    if(index%5===0||index===content.length)setStatus(`Typing… ${Math.floor(index/content.length*100)}%`);
+    const nextDelay=delayFor(ch);schedule(typeOne,nextDelay);
+    if(paper.parentElement.scrollHeight-paper.parentElement.scrollTop-paper.parentElement.clientHeight<70)paper.parentElement.scrollTop=paper.parentElement.scrollHeight;
+  }
+  function pauseResume(){
+    if(phase==='paused'){phase=resumePhase;const task=nextTask||typeOne;const wait=remaining;setStatus(phase==='countdown'?'Countdown resumed…':'Typing resumed…');controls();schedule(task,wait);return;}
+    if(phase!=='countdown'&&phase!=='typing')return;
+    resumePhase=phase;remaining=Math.max(0,due-performance.now());clearTimeout(timer);timer=null;phase='paused';setStatus('Paused');controls();
+  }
+  function stop(){if(!['countdown','typing','paused'].includes(phase))return;clearTimeout(timer);timer=null;nextTask=null;remaining=0;phase='ready';setStatus(`Stopped at ${Math.floor(index/Math.max(1,content.length)*100)}%`);controls();}
+  $id('tw-start').addEventListener('click',start);$id('tw-pause').addEventListener('click',pauseResume);$id('tw-stop').addEventListener('click',stop);
+  $id('tw-copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(paper.textContent);setStatus('Paper copied to clipboard.')}catch(_){setStatus('Clipboard access is unavailable here.')}});
+  $id('tw-download').addEventListener('click',()=>{const blob=new Blob([paper.textContent],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='folio-typewriter.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
+  document.addEventListener('keydown',e=>{if(!$id('v-typewriter').classList.contains('on'))return;if(e.key==='F8'&&['countdown','typing','paused'].includes(phase)){e.preventDefault();pauseResume()}else if(e.key==='Escape'&&['countdown','typing','paused'].includes(phase)){e.preventDefault();stop()}});
+})();
 
 /* ================= Standalone lobby chat and online games ================= */
 (function(){
