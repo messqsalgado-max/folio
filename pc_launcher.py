@@ -15,6 +15,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.request
 import zipfile
@@ -54,6 +55,10 @@ FOLIO_BROWSER_TAB=
 # Optional: your own Cloudflare domain for a fixed link (e.g. folio.gripe). Don't type it here by hand —
 # run setup-domain.bat once and it fills this in and sets everything up.
 FOLIO_TUNNEL_HOSTNAME=
+
+# Optional: set to 1 to ALSO open a free trycloudflare.com link alongside your domain (a second,
+# throwaway address to the same Folio). Only used when FOLIO_TUNNEL_HOSTNAME is set.
+FOLIO_ALSO_QUICK=
 """
 
 
@@ -249,6 +254,31 @@ def run_domain_tunnel(web, host):
                     pass
 
 
+def start_quick_tunnel():
+    """Also open a free, no-domain trycloudflare.com link to the same local server, running alongside
+    the fixed domain. Returns the cloudflared process; the random URL is printed when it appears.
+    Uses its own metrics port so it never clashes with the domain tunnel's."""
+    cf = subprocess.Popen([CF, "tunnel", "--protocol", TUNNEL_PROTOCOL, "--metrics", "127.0.0.1:0",
+                           "--url", "http://127.0.0.1:%s" % PORT, "--no-autoupdate"],
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+
+    def watch():
+        try:
+            for line in cf.stdout:  # find and announce the trycloudflare link, then keep the pipe drained
+                m = re.search(r"https://[-\w.]+\.trycloudflare\.com", line)
+                if m:
+                    print()
+                    say("Free backup link (changes each launch): " + m.group(0))
+                    break
+            for _ in cf.stdout:
+                pass
+        except Exception:
+            pass
+
+    threading.Thread(target=watch, daemon=True).start()
+    return cf
+
+
 def set_env_value(key, value):
     """Set KEY=value in folio.env (create the file from the template if it's missing)."""
     if not os.path.isfile(ENV_FILE):
@@ -433,7 +463,16 @@ def main():
         say("Password: the APP_PASSWORD you put in folio.env")
         print(bar)
         say("Keep this window open. Cloudflare connection messages appear below.\n")
-        run_domain_tunnel(web, host)
+        # Optionally ALSO open a free trycloudflare.com link to the same server (FOLIO_ALSO_QUICK=1).
+        quick = start_quick_tunnel() if os.environ.get("FOLIO_ALSO_QUICK") == "1" else None
+        try:
+            run_domain_tunnel(web, host)
+        finally:
+            if quick is not None and quick.poll() is None:
+                try:
+                    quick.terminate()
+                except Exception:
+                    pass
         return
 
     if host and not _domain_ready():
