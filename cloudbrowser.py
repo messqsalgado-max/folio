@@ -194,6 +194,18 @@ class Browser:
     # ---------------------------------------------------------------- pages (worker thread only)
     def _page(self, name):
         p = self.pages.get(name)
+        if name == "main":
+            # A Classroom doc (or any link) often opens in a NEW tab. The live view and its input both
+            # ride on "main", so make "main" follow the newest real tab the user opened — otherwise the
+            # view stays stuck on the Classroom page and the doc never shows. Exclude hidden helper tabs
+            # (e.g. "reader") and not-yet-loaded blank tabs.
+            helpers = {pg for n, pg in self.pages.items() if n != "main"}
+            extras = [pg for pg in self.ctx.pages
+                      if not pg.is_closed() and pg not in helpers and not (pg.url or "").startswith("about:")]
+            if extras and extras[-1] is not p:
+                p = extras[-1]
+                self.pages[name] = p
+                self.sessions[name] = self.ctx.new_cdp_session(p)
         if p is None or p.is_closed():
             p = self.ctx.pages[0] if name == "main" and self.ctx.pages else self.ctx.new_page()
             self.pages[name] = p

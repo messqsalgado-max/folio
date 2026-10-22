@@ -1025,17 +1025,23 @@ if sock is not None:
         try:
             while not stop.is_set():
                 frame_started = time.perf_counter()
-                img = b.shot(quality=_stream_q(b))
+                try:
+                    img = b.shot(quality=_stream_q(b))
+                except Exception:
+                    img = None  # a heavy page (e.g. a Doc loading) can stall one capture — hold the last frame
                 if img and img != last:
                     last = img
-                    ws.send(img)
+                    ws.send(img)   # a send failure means the client is gone → let it break the loop
                     delay = max(0, frame_interval - (time.perf_counter() - frame_started))
                 else:
                     delay = min(delay * 1.5, 0.12)
                 if time.time() - last_info > 1:
                     last_info = time.time()
-                    info = b.info()
-                    if info.get("url") != last_url or info.get("title") != last_title:
+                    try:
+                        info = b.info()
+                    except Exception:
+                        info = {}
+                    if info and (info.get("url") != last_url or info.get("title") != last_title):
                         last_url, last_title = info.get("url", ""), info.get("title", "")
                         ws.send(json.dumps({"url": last_url, "title": last_title}))
                 _cr_touch(api)
@@ -1080,17 +1086,23 @@ if sock is not None:
         while not stop.is_set():
             try:
                 frame_started = time.perf_counter()
-                img = b.shot(quality=_stream_q(b))  # launches only the personal-browser process
+                try:
+                    img = b.shot(quality=_stream_q(b))  # launches only the personal-browser process
+                except Exception:
+                    img = None  # a heavy page can stall one capture — hold the last frame, keep streaming
                 if img and img != last:
                     last = img
-                    ws.send(img)
+                    ws.send(img)   # a send failure means the client is gone → let it break the loop
                     delay = max(0, frame_interval - (time.perf_counter() - frame_started))
                 else:
                     delay = min(delay * 1.5, 0.12)
                 if time.time() - last_info > 1:  # keep the address bar current
                     last_info = time.time()
-                    info = b.info()
-                    if info.get("url") != last_url:
+                    try:
+                        info = b.info()
+                    except Exception:
+                        info = {}
+                    if info and info.get("url") != last_url:
                         last_url = info.get("url")
                         ws.send(json.dumps({"url": last_url, "title": info.get("title", "")}))
                 _web_touch(api)
